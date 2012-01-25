@@ -1,79 +1,18 @@
-/* SEMC:modified */
-/* 
-   ES209RA Board specific file.
-   Copyright (C) 2009 Sony Ericsson Mobile Communications Japan, Inc.
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2, as
-   published by the Free Software Foundation.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-   
-   This file is derived from
-      board-qsd8x50.c
-      QUALCOMM USA, INC.
-*/
 /* Copyright (c) 2008-2009, Code Aurora Forum. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Code Aurora Forum nor
- *       the names of its contributors may be used to endorse or promote
- *       products derived from this software without specific prior written
- *       permission.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
  *
- * Alternatively, provided that this notice is retained in full, this software
- * may be relicensed by the recipient under the terms of the GNU General Public
- * License version 2 ("GPL") and only version 2, in which case the provisions of
- * the GPL apply INSTEAD OF those given above.  If the recipient relicenses the
- * software under the GPL, then the identification text in the MODULE_LICENSE
- * macro must be changed to reflect "GPLv2" instead of "Dual BSD/GPL".  Once a
- * recipient changes the license terms to the GPL, subsequent recipients shall
- * not relicense under alternate licensing terms, including the BSD or dual
- * BSD/GPL terms.  In addition, the following license statement immediately
- * below and between the words START and END shall also then apply when this
- * software is relicensed under the GPL:
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * START
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 and only version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * END
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
  *
  */
 
@@ -112,12 +51,8 @@
 #include <mach/memory.h>
 #include <mach/msm_spi.h>
 #include <mach/msm_tsif.h>
-#ifdef CONFIG_MAX17040_FUELGAUGE
 #include <linux/max17040.h>
-#endif
-#ifdef CONFIG_SENSORS_AK8973
 #include <linux/akm8973.h>
-#endif
 
 #include "devices.h"
 #include "timer.h"
@@ -135,17 +70,10 @@
 #ifdef CONFIG_ES209RA_HEADSET
 #include "es209ra_headset.h"
 #endif
-#include <linux/spi/es209ra_touch.h>
+#include <linux/spi/es209ra_touch_mt.h>
 #include <asm/setup.h>
 #include "qdsp6/q6audio.h"
 #include <../../../drivers/video/msm/mddi_tmd_nt35580.h>
-#ifdef CONFIG_SEMC_LOW_BATT_SHUTDOWN
-#include <mach/semc_low_batt_shutdown.h>
-#endif /* CONFIG_SEMC_LOW_BATT_SHUTDOWN */
-
-#ifdef CONFIG_SEMC_MSM_PMIC_VIBRATOR
-#include  <linux/semc/msm_pmic_vibrator.h>
-#endif
 
 #include <linux/bma150_ng.h>
 
@@ -188,76 +116,6 @@
 #define PMIC_VREG_GP6_LEVEL	2850
 
 #define FPGA_SDCC_STATUS	0x70000280
-
-#ifdef CONFIG_ANDROID_RAM_CONSOLE 
-#define MSM_RAM_CONSOLE_START   0x38000000 - MSM_RAM_CONSOLE_SIZE
-#define MSM_RAM_CONSOLE_SIZE    128 * SZ_1K
-#endif
-
-#ifdef CONFIG_CAPTURE_KERNEL
-#define AMSSCORE_RAM_START 0x00000000
-#define AMSSCORE_RAM_END   0x03FFFFFF
-#define SMEMCORE_RAM_START 0x00100000
-#define SMEMCORE_RAM_END   0x001FFFFF
-#define ADSPCORE_RAM_START 0x2E000000
-#define ADSPCORE_RAM_END   0x2FFFFFFF
-#endif
-
-#ifdef CONFIG_SEMC_MSM_PMIC_VIBRATOR
-static int msm7227_platform_set_vib_voltage(u16 volt_mv)
-{
-	int rc = pmic_vib_mot_set_volt(volt_mv);
-
-	if (rc)
-		printk(KERN_ERR "%s: Failed to set motor voltage\n", __func__);
-	return rc;
-}
-
-static int msm7227_platform_init_vib_hw(void)
-{
-	int rc = pmic_vib_mot_set_mode(PM_VIB_MOT_MODE__MANUAL);
-
-	if (rc) {
-		printk(KERN_ERR "%s: Failed to set pin mode\n", __func__);
-		return rc;
-	}
-	return pmic_vib_mot_set_volt(0);
-}
-
-static struct msm_pmic_vibrator_platform_data vibrator_platform_data = {
-	.min_voltage = 1200,
-	.max_voltage = 2500,
-	.off_voltage = 0,
-	.default_voltage = 2500,
-	.mimimal_on_time = 10,
-	.platform_set_vib_voltage = msm7227_platform_set_vib_voltage,
-	.platform_init_vib_hw = msm7227_platform_init_vib_hw,
-};
-static struct platform_device vibrator_device = {
-	.name = "msm_pmic_vibrator",
-	.id = -1,
-	.dev = {
-		.platform_data = &vibrator_platform_data,
-	},
-};
-#endif
-
-#ifdef CONFIG_ANDROID_RAM_CONSOLE
-static struct resource ram_console_resources[] = {
-        [0] = {
-                .start  = MSM_RAM_CONSOLE_START,
-                .end    = MSM_RAM_CONSOLE_START+MSM_RAM_CONSOLE_SIZE-1,
-                .flags  = IORESOURCE_MEM,
-        },
-};
-
-static struct platform_device ram_console_device = {
-        .name           = "ram_console",
-        .id             = -1,
-        .num_resources  = ARRAY_SIZE(ram_console_resources),
-        .resource       = ram_console_resources,
-};
-#endif
 
 #ifdef CONFIG_SMC91X
 static struct resource smc91x_resources[] = {
@@ -336,11 +194,6 @@ static struct usb_mass_storage_platform_data mass_storage_pdata = {
         .vendor = "SEMC",
         .product = "Mass Storage",
         .release = 0x0100,
-
-        .cdrom_nluns = 1,
-        .cdrom_vendor = "SEMC",
-        .cdrom_product = "CD-ROM",
-        .cdrom_release = 0x0100,
 };
 
 static struct platform_device usb_mass_storage_device = {
@@ -396,11 +249,11 @@ static struct platform_device smc91x_device = {
 #endif /* CONFIG_SMC91X */
  
 static struct platform_device hs_device = {
-       .name   = "msm-handset",
-       .id     = -1,
-       .dev    = {
-               .platform_data = "8k_handset",
-       },
+	.name   = "msm-handset",
+	.id     = -1,
+	.dev    = {
+		.platform_data = "8k_handset",
+	},
 };
 
 #ifdef CONFIG_USB_FS_HOST
@@ -636,36 +489,6 @@ static struct android_pmem_platform_data android_pmem_kernel_smi_pdata = {
 
 #endif
 
-#ifdef CONFIG_CAPTURE_KERNEL
-static struct resource kdump_amsscoredump_resources[] = {
-	{
-		.name   = "amsscore0",
-		.start  = AMSSCORE_RAM_START,
-		.end    = AMSSCORE_RAM_END,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "smemcore0",
-		.start  = SMEMCORE_RAM_START,
-		.end    = SMEMCORE_RAM_END,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "adspcore0",
-		.start  = ADSPCORE_RAM_START,
-		.end    = ADSPCORE_RAM_END,
-		.flags  = IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device kdump_amsscoredump_device = {
-	.name           = "amsscoredump",
-	.id             = -1,
-	.num_resources  = ARRAY_SIZE(kdump_amsscoredump_resources),
-	.resource       = kdump_amsscoredump_resources,
-};
-#endif
-
 static struct android_pmem_platform_data android_pmem_pdata = {
 	.name = "pmem",
 	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
@@ -686,6 +509,7 @@ static struct android_pmem_platform_data android_pmem_smipool_pdata = {
 	.cached = 0,
 };
 
+
 static struct platform_device android_pmem_device = {
 	.name = "android_pmem",
 	.id = 0,
@@ -703,6 +527,7 @@ static struct platform_device android_pmem_smipool_device = {
 	.id = 2,
 	.dev = { .platform_data = &android_pmem_smipool_pdata },
 };
+
 
 static struct platform_device android_pmem_kernel_ebi1_device = {
 	.name = "android_pmem",
@@ -810,11 +635,11 @@ static struct spi_board_info msm_spi_board_info[] __initdata = {
 		.modalias	= "es209ra_touch",
 		.mode		= SPI_MODE_0,
 		.irq		= INT_ES209RA_GPIO_TOUCHPAD,
-		.platform_data  = &es209ra_touch_data,
 		.bus_num	= 0,
 		.chip_select	= 0,
 		.max_speed_hz	= 3000000,
-	}
+		.platform_data  = &es209ra_touch_data,
+	},
 };
 
 #define CT_CSR_PHYS		0xA8700000
@@ -1108,6 +933,7 @@ static struct resource msm_audio_resources[] = {
 		.end	= 0xa0700000 + 4,
 		.flags	= IORESOURCE_MEM,
 	},
+
 };
 
 static unsigned audio_gpio_on[] = {
@@ -1323,7 +1149,7 @@ static int bluetooth_power(int on)
 		rc = vreg_disable(vreg_wlan);
 		if (rc) {
 			printk(KERN_ERR "%s: vreg wlan disable failed (%d)\n",
-			       __func__, rc);
+					__func__, rc);
 			return -EIO;
 		}
 		rc = vreg_disable(vreg_bt);
@@ -1741,7 +1567,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_mt9d112_data = {
 	.vcm_enable     = 0,
 	.pdata          = &msm_camera_device_data,
 	.resource       = msm_camera_resources,
-	.num_resources  = ARRAY_SIZE(msm_camera_resources)
+	.num_resources  = ARRAY_SIZE(msm_camera_resources),
 	.flash_data     = &flash_mt9d112
 };
 
@@ -1767,7 +1593,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_s5k3e2fx_data = {
 	.vcm_enable     = 0,
 	.pdata          = &msm_camera_device_data,
 	.resource       = msm_camera_resources,
-	.num_resources  = ARRAY_SIZE(msm_camera_resources)
+	.num_resources  = ARRAY_SIZE(msm_camera_resources),
 	.flash_data     = &flash_s5k3e2fx
 };
 
@@ -1793,7 +1619,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_mt9p012_data = {
 	.vcm_enable     = 0,
 	.pdata          = &msm_camera_device_data,
 	.resource       = msm_camera_resources,
-	.num_resources  = ARRAY_SIZE(msm_camera_resources)
+	.num_resources  = ARRAY_SIZE(msm_camera_resources),
 	.flash_data     = &flash_mt9p012
 };
 
@@ -1819,7 +1645,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_mt9p012_km_data = {
 	.vcm_enable     = 0,
 	.pdata          = &msm_camera_device_data,
 	.resource       = msm_camera_resources,
-	.num_resources  = ARRAY_SIZE(msm_camera_resources)
+	.num_resources  = ARRAY_SIZE(msm_camera_resources),
 	.flash_data     = &flash_mt9p012_km
 };
 
@@ -1845,7 +1671,7 @@ static struct msm_camera_sensor_info msm_camera_sensor_mt9t013_data = {
 	.vcm_enable     = 0,
 	.pdata          = &msm_camera_device_data,
 	.resource       = msm_camera_resources,
-	.num_resources  = ARRAY_SIZE(msm_camera_resources)
+	.num_resources  = ARRAY_SIZE(msm_camera_resources),
 	.flash_data     = &flash_mt9t013
 };
 
@@ -1867,14 +1693,10 @@ static struct platform_device msm_wlan_ar6000_pm_device = {
 
 static int hsusb_rpc_connect(int connect)
 {
-#ifdef CONFIG_CRASH_DUMP
-	return 0;
-#else
 	if (connect)
 		return msm_hsusb_rpc_connect();
 	else
 		return msm_hsusb_rpc_close();
-#endif
 }
 
 static struct msm_otg_platform_data msm_otg_pdata = {
@@ -1888,20 +1710,6 @@ static struct msm_otg_platform_data msm_otg_pdata = {
 };
 
 static struct msm_hsusb_gadget_platform_data msm_gadget_pdata;
-
-#ifdef CONFIG_SEMC_LOW_BATT_SHUTDOWN
-static struct lbs_platform_data lbs_data = {
-	.threshold_vol = 3500,
-};
-
-static struct platform_device lbs_device = {
-	.name	= "Low-Battery Shutdown",
-	.id	= -1,
-	.dev	= {
-		.platform_data = &lbs_data,
-	},
-};
-#endif /* CONFIG_SEMC_LOW_BATT_SHUTDOWN */
 
 #ifdef CONFIG_PMIC_TIME
 static struct platform_device pmic_time_device = {
@@ -1966,20 +1774,8 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_SEMC_IMX046_CAMERA
 	&msm_camera_sensor_semc_imx046_camera,
 #endif
-#ifdef CONFIG_SEMC_MSM_PMIC_VIBRATOR
-	&vibrator_device,
-#endif
-#ifdef CONFIG_ANDROID_RAM_CONSOLE
-	&ram_console_device,
-#endif
 #ifdef CONFIG_ES209RA_HEADSET
 	&es209ra_audio_jack_device,
-#endif
-#ifdef CONFIG_SEMC_LOW_BATT_SHUTDOWN
-	&lbs_device,
-#endif /* CONFIG_SEMC_LOW_BATT_SHUTDOWN */
-#ifdef CONFIG_CAPTURE_KERNEL
-	&kdump_amsscoredump_device,
 #endif
 #ifdef CONFIG_PMIC_TIME
 	&pmic_time_device,
@@ -2262,16 +2058,12 @@ static void msm_i2c_gpio_config(int iface, int config_type)
 			printk(KERN_INFO "%s: es209ra has only primary I2C.\n", __func__);
 			return;
 	}
-	
-	if (config_type)
-	{
+	if (config_type) {
 		gpio_tlmm_config(GPIO_CFG(gpio_scl, 1, GPIO_INPUT,
 					GPIO_NO_PULL, GPIO_16MA), GPIO_ENABLE);
 		gpio_tlmm_config(GPIO_CFG(gpio_sda, 1, GPIO_INPUT,
 					GPIO_NO_PULL, GPIO_16MA), GPIO_ENABLE);
-	}
-	else
-	{
+	} else {
 		gpio_tlmm_config(GPIO_CFG(gpio_scl, 0, GPIO_OUTPUT,
 					GPIO_NO_PULL, GPIO_16MA), GPIO_ENABLE);
 		gpio_tlmm_config(GPIO_CFG(gpio_sda, 0, GPIO_OUTPUT,
@@ -2351,6 +2143,7 @@ static void __init pmem_adsp_size_setup(char **p)
 }
 __early_param("pmem_adsp_size=", pmem_adsp_size_setup);
 
+
 static unsigned audio_size = MSM_AUDIO_SIZE;
 static void __init audio_size_setup(char **p)
 {
@@ -2384,11 +2177,6 @@ int get_predecode_repair_cache(void);
 int set_predecode_repair_cache(void);
 static void __init es209ra_init(void)
 {
-#ifdef CONFIG_CAPTURE_KERNEL
-	smsm_wait_for_modem_reset();
-#else
-	smsm_wait_for_modem();
-#endif
 	if (socinfo_init() < 0)
 		printk(KERN_ERR "%s: socinfo_init() failed!\n", __func__);
 	printk(KERN_INFO "%s: startup_reason: 0x%08x\n",
@@ -2433,7 +2221,6 @@ static void __init es209ra_init(void)
 	msm_mddi_tmd_fwvga_display_device_init();
 }
 
-#ifndef CONFIG_CAPTURE_KERNEL
 static void __init es209ra_allocate_memory_regions(void)
 {
 	void *addr;
@@ -2484,6 +2271,7 @@ static void __init es209ra_allocate_memory_regions(void)
 			"pmem arena\n", size, addr, __pa(addr));
 	}
 
+
 	size = MSM_FB_SIZE;
 	addr = (void *)MSM_FB_BASE;
 	msm_fb_resources[0].start = (unsigned long)addr;
@@ -2511,15 +2299,12 @@ static void __init es209ra_fixup(struct machine_desc *desc, struct tag *tags,
 	mi->bank[1].size = (127*1024*1024);
 	mi->bank[1].node = PHYS_TO_NID(mi->bank[1].start);
 }
-#endif
 
 static void __init es209ra_map_io(void)
 {
 	msm_shared_ram_phys = MSM_SHARED_RAM_PHYS;
 	msm_map_qsd8x50_io();
-#ifndef CONFIG_CAPTURE_KERNEL
 	es209ra_allocate_memory_regions();
-#endif
 	msm_clock_init(msm_clocks_8x50, msm_num_clocks_8x50);
 }
 
@@ -2545,12 +2330,9 @@ MACHINE_START(ES209RA, "ES209RA")
 	.phys_io  = MSM_DEBUG_UART_PHYS,
 	.io_pg_offst = ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
 #endif
-#ifdef CONFIG_CAPTURE_KERNEL
 	.boot_params    = PHYS_OFFSET + 0x1000,
-#else
 	.boot_params	= PHYS_OFFSET + 0x100,
 	.fixup          = es209ra_fixup,
-#endif
 	.map_io		= es209ra_map_io,
 	.init_irq	= es209ra_init_irq,
 	.init_machine	= es209ra_init,
