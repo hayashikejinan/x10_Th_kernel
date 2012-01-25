@@ -813,7 +813,7 @@ static struct spi_board_info msm_spi_board_info[] __initdata = {
 		.platform_data  = &es209ra_touch_data,
 		.bus_num	= 0,
 		.chip_select	= 0,
-		.max_speed_hz	= 1000000,
+		.max_speed_hz	= 3000000,
 	}
 };
 
