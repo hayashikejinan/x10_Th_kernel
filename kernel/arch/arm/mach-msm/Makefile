@@ -165,17 +165,18 @@ obj-$(CONFIG_SEMC_RPC_SERVER_HANDSET) += semc_rpc_server_handset.o
 obj-$(CONFIG_ARCH_MSM7X30) += spm.o
 obj-$(CONFIG_MSM_RPM) += rpm.o
 obj-$(CONFIG_MSM_RPM_LOG) += rpm_log.o
+obj-$(CONFIG_MSM_XO) += msm_xo.o
 obj-$(CONFIG_PMIC_TIME) += pmic_time.o
 
 obj-$(CONFIG_SMMU)		+= smmu_driver.o smmu_driver_enum.o
 obj-$(CONFIG_SMMU_8X60)		+= board-msm8x60-smmu.o
-ifdef CONFIG_GPIOLIB
-obj-$(CONFIG_MSM7200A_TLMM)	+= msm7200a-gpio.o
-else
-obj-$(CONFIG_MSM7200A_TLMM)	+= gpio.o generic_gpio.o
-endif
-obj-$(CONFIG_MSM7200A_TLMM)	+= tlmm-msm7200a.o
-obj-$(CONFIG_MSM8660_TLMM)	+= tlmm-msm8660.o msm8660-gpio.o
 obj-$(CONFIG_MSM_BUS_SCALING)	+= msm_bus_core.o
-obj-$(CONFIG_MSM7200A_TLMM)	+= gpiomux.o gpiomux-7x00.o
-obj-$(CONFIG_MSM8660_TLMM)	+= gpiomux.o gpiomux-8x60.o
+ifdef CONFIG_MSM_V2_TLMM
+obj-y	+= tlmm-msm8660.o msm8660-gpio.o
+else
+obj-y	+= gpio.o
+endif
+obj-$(CONFIG_ARCH_MSM7X27)	+= gpiomux.o gpiomux-7x00.o gpiomux-7x27.o
+obj-$(CONFIG_ARCH_MSM7X30)	+= gpiomux.o gpiomux-7x00.o gpiomux-7x30.o
+obj-$(CONFIG_ARCH_QSD8X50)	+= gpiomux.o gpiomux-7x00.o gpiomux-8x50.o
+obj-$(CONFIG_ARCH_MSM8X60)	+= gpiomux.o gpiomux-8x60.o

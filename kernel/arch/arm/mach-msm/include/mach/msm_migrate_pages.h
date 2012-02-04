@@ -24,52 +24,10 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
-#ifndef __ASM_ARCH_MSM_GPIO_V2_H
-#define __ASM_ARCH_MSM_GPIO_V2_H
+#ifndef _MACH_MSM_MIGRATE_PAGES_H_
+#define _MACH_MSM_MIGRATE_PAGES_H_
 
-#include <mach/gpio-tlmm-v1.h>
-#if defined(CONFIG_ARCH_MSM8X60)
-#include <mach/gpio-v2-8x60.h>
+unsigned long get_msm_migrate_pages_status(void);
 #endif
-
-/* MSM now supports generic GPIOLIB.  See Documentation/gpio.txt. */
-
-#include <asm-generic/gpio.h>
-#include <mach/irqs.h>
-
-#define gpio_get_value __gpio_get_value
-#define gpio_set_value __gpio_set_value
-#define gpio_cansleep  __gpio_cansleep
-
-static inline int gpio_to_irq(unsigned gpio)
-{
-	return (gpio < ARCH_NR_GPIOS ? MSM_GPIO_TO_INT(gpio) : -EINVAL);
-}
-
-static inline int irq_to_gpio(unsigned irq)
-{
-	return irq - MSM_GPIO_TO_INT(0);
-}
-
-/*
- * A GPIO can be set as a direct-connect IRQ.  This can be used to bypass
- * the normal summary-interrupt mechanism for those GPIO lines deemed to be
- * higher priority or otherwise worthy of special treatment, but resources
- * are limited: only a few DC interrupt lines are available.
- * Care must be taken when usurping a GPIO in this manner, as the summary
- * interrupt controller has no idea that the GPIO has been taken away from it.
- * Clients can still register to receive the summary interrupt assigned
- * to that GPIO, which will uninstall it as a direct connect IRQ with
- * no warning.
- *
- * The irq passed to this function is the DC IRQ number, not the
- * irq number seen by the scorpion when the interrupt triggers.  For example,
- * if 0 is specified, then when DC IRQ 0 triggers, the scorpion will see
- * interrupt TLMM_SCSS_DIR_CONN_IRQ_0.
- */
-int msm_gpio_install_direct_irq(unsigned gpio, unsigned irq);
-
-#endif /* __ASM_ARCH_MSM_GPIO_V2_H */

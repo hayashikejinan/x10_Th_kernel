@@ -41,3 +41,5 @@ obj-$(CONFIG_PMIC8058_PWM) += pmic8058-pwm.o
 obj-$(CONFIG_CRASH_DUMP) += 	msm_amss_coredump.o
 obj-y				+= semc/gpio_matrix/
 
+obj-$(CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_DEEP_POWER_DOWN) \
+	+= msm_migrate_pages.o

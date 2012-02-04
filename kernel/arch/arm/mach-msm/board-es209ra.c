@@ -37,7 +37,6 @@
 #include <asm/mach/mmc.h>
 #include <mach/vreg.h>
 #include <mach/mpp.h>
-#include <mach/gpio.h>
 #include <mach/board.h>
 #include <mach/sirc.h>
 #include <mach/dma.h>
@@ -1724,19 +1723,6 @@ static struct platform_device pmic_time_device = {
 };
 #endif
 
-static struct platform_device *early_devices[] __initdata = {
-#ifdef CONFIG_GPIOLIB
-	&msm_gpio_devices[0],
-	&msm_gpio_devices[1],
-	&msm_gpio_devices[2],
-	&msm_gpio_devices[3],
-	&msm_gpio_devices[4],
-	&msm_gpio_devices[5],
-	&msm_gpio_devices[6],
-	&msm_gpio_devices[7],
-#endif
-};
-
 static struct platform_device *devices[] __initdata = {
 	&msm_wlan_ar6000_pm_device,
 	&msm_fb_device,
@@ -2205,7 +2191,6 @@ static void __init es209ra_init(void)
 	set_predecode_repair_cache();
 	printk(KERN_ERR "PVR0F2: %x\n", get_predecode_repair_cache());
 	msm_clock_init(msm_clocks_8x50, msm_num_clocks_8x50);
-	platform_add_devices(early_devices, ARRAY_SIZE(early_devices));
 
 #ifdef CONFIG_SMC91X
 	es209ra_cfg_smc91x();

@@ -28,6 +28,7 @@
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/memory.h>
 #ifdef CONFIG_HAS_WAKELOCK
 #include <linux/wakelock.h>
 #endif
@@ -38,6 +39,10 @@
 #endif
 #ifdef CONFIG_VFP
 #include <asm/vfp.h>
+#endif
+
+#ifdef CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_DEEP_POWER_DOWN
+#include <mach/msm_migrate_pages.h>
 #endif
 
 #include "smd_private.h"
@@ -163,6 +168,9 @@ static ssize_t msm_pm_mode_attr_show(
 	for (i = 0; i < MSM_PM_SLEEP_MODE_NR; i++) {
 		struct kernel_param kp;
 
+		if (msm_pm_sleep_mode_labels[i] == NULL)
+			continue;
+
 		if (strcmp(kobj->name, msm_pm_sleep_mode_labels[i]))
 			continue;
 
@@ -208,6 +216,9 @@ static ssize_t msm_pm_mode_attr_store(struct kobject *kobj,
 
 	for (i = 0; i < MSM_PM_SLEEP_MODE_NR; i++) {
 		struct kernel_param kp;
+
+		if (msm_pm_sleep_mode_labels[i] == NULL)
+			continue;
 
 		if (strcmp(kobj->name, msm_pm_sleep_mode_labels[i]))
 			continue;
@@ -1621,6 +1632,9 @@ static int msm_pm_enter(suspend_state_t state)
 		sleep_limit |= SLEEP_RESOURCE_MEMORY_BIT1;
 #elif defined(CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_RETENTION)
 		sleep_limit |= SLEEP_RESOURCE_MEMORY_BIT0;
+#elif defined(CONFIG_MSM_MEMORY_LOW_POWER_MODE_SUSPEND_DEEP_POWER_DOWN)
+		if (get_msm_migrate_pages_status() != MEM_OFFLINE)
+			sleep_limit |= SLEEP_RESOURCE_MEMORY_BIT0;
 #endif
 
 		ret = msm_pm_power_collapse(
