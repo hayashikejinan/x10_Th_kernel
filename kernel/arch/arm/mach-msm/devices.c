@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-msm/devices.c
- *
+/*
  * Copyright (C) 2008 Google, Inc.
  * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
  *
@@ -96,17 +95,8 @@ struct platform_device msm_device_uart3 = {
 	.resource	= resources_uart3,
 };
 
-#if defined(CONFIG_ARCH_MSM7X30)
 #define MSM_UART1DM_PHYS      0xA3300000
 #define MSM_UART2DM_PHYS      0xA3200000
-#elif defined(CONFIG_ARCH_QSD8X50)
-#define MSM_UART1DM_PHYS      0xA0200000
-#define MSM_UART2DM_PHYS      0xA0900000
-#else
-#define MSM_UART1DM_PHYS      0xA0200000
-#define MSM_UART2DM_PHYS      0xA0300000
-#endif
-
 static struct resource msm_uart1_dm_resources[] = {
 	{
 		.start = MSM_UART1DM_PHYS,
@@ -222,15 +212,8 @@ struct platform_device msm_device_uart_dm2 = {
 };
 
 #define MSM_I2C_SIZE          SZ_4K
-#if defined(CONFIG_ARCH_MSM7X30)
 #define MSM_I2C_PHYS          0xACD00000
 #define MSM_I2C_2_PHYS        0xACF00000
-#else
-#define MSM_I2C_PHYS          0xA9900000
-#define MSM_I2C_2_PHYS        0xA9900000
-#define INT_PWB_I2C_2         INT_PWB_I2C
-#endif
-
 static struct resource resources_i2c_2[] = {
 	{
 		.start	= MSM_I2C_2_PHYS,
@@ -271,16 +254,8 @@ struct platform_device msm_device_i2c = {
 	.resource	= resources_i2c,
 };
 
-#if defined(CONFIG_ARCH_MSM7X30)
 #define MSM_QUP_PHYS           0xA8301000
 #define MSM_GSBI_QUP_I2C_PHYS  0xA8300000
-#else
-#define MSM_QUP_PHYS           0xA9900000
-#define MSM_GSBI_QUP_I2C_PHYS  0xA9900000
-#define INT_PWB_QUP_IN         INT_PWB_I2C
-#define INT_PWB_QUP_OUT        INT_PWB_I2C
-#define INT_PWB_QUP_ERR        INT_PWB_I2C
-#endif
 #define MSM_QUP_SIZE           SZ_4K
 static struct resource resources_qup[] = {
 	{
@@ -358,11 +333,7 @@ struct platform_device msm_device_ssbi7 = {
 };
 #endif /* CONFIG_I2C_SSBI */
 
-#ifdef CONFIG_ARCH_MSM7X30
 #define MSM_HSUSB_PHYS        0xA3600000
-#else
-#define MSM_HSUSB_PHYS        0xA0800000
-#endif
 static struct resource resources_hsusb_otg[] = {
 	{
 		.start	= MSM_HSUSB_PHYS,
@@ -413,20 +384,6 @@ static struct resource resources_hsusb_peripheral[] = {
 		.end	= INT_USB_HS,
 		.flags	= IORESOURCE_IRQ,
 	},
-#ifdef CONFIG_ARCH_MSM7X01A
-	{
-		.name	= "vbus_interrupt",
-		.start	= MSM_GPIO_TO_INT(112),
-		.end	= MSM_GPIO_TO_INT(112),
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.name	= "id_interrupt",
-		.start	= MSM_GPIO_TO_INT(114),
-		.end	= MSM_GPIO_TO_INT(114),
-		.flags	= IORESOURCE_IRQ,
-	},
-#endif
 };
 
 static struct resource resources_gadget_peripheral[] = {
@@ -464,33 +421,6 @@ struct platform_device msm_device_gadget_peripheral = {
 	},
 };
 
-#ifdef CONFIG_USB_FS_HOST
-#define MSM_HS2USB_PHYS        0xA0800400
-static struct resource resources_hsusb_host2[] = {
-	{
-		.start	= MSM_HS2USB_PHYS,
-		.end	= MSM_HS2USB_PHYS + SZ_1K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= INT_USB_OTG,
-		.end	= INT_USB_OTG,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device msm_device_hsusb_host2 = {
-	.name		= "msm_hsusb_host",
-	.id		= 1,
-	.num_resources	= ARRAY_SIZE(resources_hsusb_host2),
-	.resource	= resources_hsusb_host2,
-	.dev		= {
-		.dma_mask 		= &dma_mask,
-		.coherent_dma_mask	= 0xffffffffULL,
-	},
-};
-#endif
-
 static struct resource resources_hsusb_host[] = {
 	{
 		.start	= MSM_HSUSB_PHYS,
@@ -517,9 +447,6 @@ struct platform_device msm_device_hsusb_host = {
 
 static struct platform_device *msm_host_devices[] = {
 	&msm_device_hsusb_host,
-#ifdef CONFIG_USB_FS_HOST
-	&msm_device_hsusb_host2,
-#endif
 };
 
 int msm_add_host(unsigned int host, struct msm_usb_host_platform_data *plat)
@@ -532,16 +459,12 @@ int msm_add_host(unsigned int host, struct msm_usb_host_platform_data *plat)
 	pdev->dev.platform_data = plat;
 	return platform_device_register(pdev);
 }
-#if defined(CONFIG_ARCH_MSM7X30)
+
 #define MSM_NAND_PHYS		0xA0200000
 #define MSM_NANDC01_PHYS	0xA0240000
 #define MSM_NANDC10_PHYS	0xA0280000
 #define MSM_NANDC11_PHYS	0xA02C0000
 #define EBI2_REG_BASE		0xA0000000
-#else
-#define MSM_NAND_PHYS		0xA0A00000
-#endif
-
 static struct resource resources_nand[] = {
 	[0] = {
 		.name   = "msm_nand_dmac",
@@ -555,7 +478,6 @@ static struct resource resources_nand[] = {
 		.end    = MSM_NAND_PHYS + 0x7FF,
 		.flags  = IORESOURCE_MEM,
 	},
-#if defined(CONFIG_ARCH_MSM7X30)
 	[2] = {
 		.name   = "msm_nandc01_phys",
 		.start  = MSM_NANDC01_PHYS,
@@ -602,7 +524,6 @@ static struct resource resources_otg[] = {
 		.end	= PM8058_IRQ_CHGVAL,
 		.flags	= IORESOURCE_IRQ,
 	},
-#endif
 };
 
 struct platform_device msm_device_otg = {
@@ -640,23 +561,10 @@ struct platform_device msm_device_dmov = {
 	.id	= -1,
 };
 
-#if defined(CONFIG_ARCH_QSD8X50)
-#define MSM_SDC1_BASE         0xA0300000
-#define MSM_SDC2_BASE         0xA0400000
-#define MSM_SDC3_BASE         0xA0500000
-#define MSM_SDC4_BASE         0xA0600000
-#elif defined(CONFIG_ARCH_MSM7X30)
 #define MSM_SDC1_BASE         0xA0400000
 #define MSM_SDC2_BASE         0xA0500000
 #define MSM_SDC3_BASE         0xA3000000
 #define MSM_SDC4_BASE         0xA3100000
-#else
-#define MSM_SDC1_BASE         0xA0400000
-#define MSM_SDC2_BASE         0xA0500000
-#define MSM_SDC3_BASE         0xA0600000
-#define MSM_SDC4_BASE         0xA0700000
-#endif
-
 static struct resource resources_sdc1[] = {
 	{
 		.start	= MSM_SDC1_BASE,
@@ -906,7 +814,6 @@ int __init rmt_storage_add_ramfs(void)
 	return -ENOENT;
 }
 
-#if defined(CONFIG_ARCH_MSM7X30)
 static struct resource msm_vidc_720p_resources[] = {
 	{
 		.start	= 0xA3B00000,
@@ -926,8 +833,6 @@ struct platform_device msm_device_vidc_720p = {
 	.num_resources = ARRAY_SIZE(msm_vidc_720p_resources),
 	.resource = msm_vidc_720p_resources,
 };
-
-#endif
 
 #if defined(CONFIG_FB_MSM_MDP40)
 #define MDP_BASE          0xA3F00000
@@ -1084,12 +989,7 @@ struct platform_device msm_device_tsif = {
 #endif /* defined(CONFIG_TSIF) || defined(CONFIG_TSIF_MODULE) */
 /* TSIF end   */
 
-#if defined(CONFIG_ARCH_MSM7X30)
 #define MSM_TSSC_PHYS         0xAD300000
-#else
-#define MSM_TSSC_PHYS         0xAA300000
-#endif
-
 static struct resource resources_tssc[] = {
 	{
 		.start	= MSM_TSSC_PHYS,

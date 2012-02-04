@@ -526,10 +526,10 @@ static int vdec_flush(struct vdec_data *vd, void *argp)
 	u32 flush_type;
 	int ret = 0;
 
-   if (!vd->mem_initialized) {
-   pr_err("%s: memory is not being initialized!\n", __func__);
-   return -EPERM;
-   }
+	if (!vd->mem_initialized) {
+		pr_err("%s: memory is not being initialized!\n", __func__);
+		return -EPERM;
+	}
 
 	ret = copy_from_user(&flush_type, argp, sizeof(flush_type));
 	if (ret) {
@@ -893,7 +893,7 @@ static int vdec_open(struct inode *inode, struct file *file)
 				     1, callback, vd);
 
 	if (!vd->vdec_handle) {
-		pr_err("%s: failed to attach \n", __func__);
+		pr_err("%s: failed to attach\n", __func__);
 		ret = -EIO;
 		goto vdec_open_err_handle_list;
 	}
