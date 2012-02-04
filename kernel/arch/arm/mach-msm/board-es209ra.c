@@ -722,14 +722,14 @@ static void __init msm_qsd_spi_init(void)
 }
 
 static int mddi_power_save_on;
-static void msm_fb_mddi_power_save(int on)
+static int msm_fb_mddi_power_save(int on)
 {
 	int flag_on = !!on;
-	int ret;
+	int ret = 0;
 
 
 	if (mddi_power_save_on == flag_on)
-		return;
+		return ret;
 
 	mddi_power_save_on = flag_on;
 
@@ -737,6 +737,8 @@ static void msm_fb_mddi_power_save(int on)
 		PM_VREG_LP_MSME2_ID);
 	if (ret)
 		printk(KERN_ERR "%s: pmic_lp_mode failed!\n", __func__);
+
+	return ret;
 }
 
 static int msm_fb_mddi_sel_clk(u32 *clk_rate)

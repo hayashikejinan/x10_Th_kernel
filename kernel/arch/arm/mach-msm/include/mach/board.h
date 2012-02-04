@@ -234,7 +234,7 @@ struct msm_panel_common_pdata {
 
 struct lcdc_platform_data {
 	int (*lcdc_gpio_config)(int on);
-	void (*lcdc_power_save)(int);
+	int (*lcdc_power_save)(int);
 };
 
 struct tvenc_platform_data {
@@ -242,7 +242,7 @@ struct tvenc_platform_data {
 };
 
 struct mddi_platform_data {
-	void (*mddi_power_save)(int on);
+	int (*mddi_power_save)(int on);
 	int (*mddi_sel_clk)(u32 *clk_rate);
 	int (*mddi_power_on)(int);
 };
@@ -296,7 +296,6 @@ void __init msm_acpu_clock_init(struct msm_acpu_clock_platform_data *);
 struct mmc_platform_data;
 int __init msm_add_sdcc(unsigned int controller,
 		struct mmc_platform_data *plat);
-int __init rmt_storage_add_ramfs(void);
 
 struct msm_usb_host_platform_data;
 int __init msm_add_host(unsigned int host,

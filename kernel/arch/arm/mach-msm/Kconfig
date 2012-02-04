@@ -273,6 +273,22 @@ config MACH_MSM8X55_FFA
        help
          Support for the Qualcomm MSM8x55 FFA eval board.
 
+config MACH_MSM8X55_SVLTE_FFA
+       depends on ARCH_MSM7X30
+       depends on !MSM_STACKED_MEMORY
+       default y
+       bool "MSM8X55 SVLTE FFA"
+       help
+         Support for the Qualcomm MSM8x55 SVLTE FFA eval board.
+
+config MACH_MSM8X55_SVLTE_SURF
+       depends on ARCH_MSM7X30
+       depends on !MSM_STACKED_MEMORY
+       default y
+       bool "MSM8X55 SVLTE SURF"
+       help
+         Support for the Qualcomm MSM8x55 SVLTE SURF eval board.
+
 config MACH_MSM8X60_RUMI3
 	depends on ARCH_MSM8X60
 	default n
@@ -644,8 +660,15 @@ config MSM_SDIO_AL
 	  Support MSM<->MDM Communication over SDIO bus.
 	  MDM SDIO-Client should have pipes support.
 
+config MSM_SDIO_AL_TEST
+	depends on MSM_SDIO_AL
+	default n
+	tristate "SDIO-Abstraction-Layer Test"
+	help
+	  SDIO-AL functionality and performance test.
+
 config MSM_N_WAY_SMD
-	depends on (MSM_SMD && (ARCH_MSM_SCORPION || ARCH_MSM7X27))
+	depends on (MSM_SMD && (ARCH_MSM_SCORPION || ARCH_MSM_SCORPIONMP || ARCH_MSM7X27))
 	default y
 	bool "MSM N-WAY SMD support"
 	help
@@ -653,7 +676,7 @@ config MSM_N_WAY_SMD
 	  normal APPS-MODEM SMD communication.
 
 config MSM_N_WAY_SMSM
-	depends on (MSM_SMD && (ARCH_MSM_SCORPION || ARCH_MSM7X27))
+	depends on (MSM_SMD && (ARCH_MSM_SCORPION || ARCH_MSM_SCORPIONMP || ARCH_MSM7X27))
 	default y
 	bool "MSM N-WAY SMSM support"
 	help
@@ -704,14 +727,28 @@ config MSM_SMD_QMI
 
 	  If in doubt, say yes.
 
-config MSM_SMD_CTL
-	bool "SMD Control Driver"
+config MSM_SMD_PKT
+	bool "SMD Packet Driver"
 	depends on MSM_SMD
 	default y
 	help
-	  Provides a binary SMD non-muxed control port interface.
+	  Provides a binary SMD non-muxed packet port interface.
 
 	  If in doubt, say yes.
+
+config MSM_SDIO_CTL
+	bool "SDIO CTL Driver"
+	depends on MSM_SDIO_AL
+	default y
+	help
+	  Provides a binay SDIO muxed control port interface.
+
+config MSM_SDIO_CTL_DEBUG
+	bool "SDIO CTL DEBUG Enable"
+	depends on MSM_SDIO_CTL
+	default y
+	help
+	  Support for debugging the SDIO Control Driver
 
 config MSM_ONCRPCROUTER
 	depends on MSM_SMD
@@ -760,7 +797,7 @@ config MSM_RPC_PING
 	  Implements MSM rpc ping test module.
 
 config MSM_RPC_PROC_COMM_TEST
-	depends on DEBUG_FS
+	depends on DEBUG_FS && MSM_PROC_COMM
 	default m
 	bool "MSM rpc proc comm test"
 	help
@@ -781,18 +818,18 @@ config MSM_RPCSERVER_HANDSET
 	  Support for receiving handset events like headset detect,
 	  headset switch and clamshell state.
 
-config MSM_RMT_STORAGE_SERVER
+config MSM_RMT_STORAGE_CLIENT
 	depends on (ARCH_MSM && MSM_ONCRPCROUTER)
 	default n
-	bool "Remote Storage RPC server"
+	bool "Remote Storage RPC client"
 	help
 	  Provide RPC mechanism for remote processors to access storage
 	  device on apps processor.
 
-config MSM_RMT_STORAGE_SERVER_STATS
-	depends on (MSM_RMT_STORAGE_SERVER && DEBUG_FS)
+config MSM_RMT_STORAGE_CLIENT_STATS
+	depends on (MSM_RMT_STORAGE_CLIENT && DEBUG_FS)
 	default n
-	bool "Remote storage RPC server performance statistics"
+	bool "Remote storage RPC client performance statistics"
 	help
 	  Collects performance statistics and shows this information
 	  through a debugfs file rmt_storage_stats.
