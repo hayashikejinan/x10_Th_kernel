@@ -1236,7 +1236,7 @@ static void _audio_rx_clk_disable(void)
 		if (ecodec_clk_refcount == 0) {
 
 			gpio_tlmm_config(
-					GPIO_CFG(audio_gpios.aux_pcm_dout, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA), GPIO_ENABLE);
+					GPIO_CFG(audio_gpios.aux_pcm_dout, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 			gpio_set_value(audio_gpios.aux_pcm_dout, 0);
 			msleep(20);
 
@@ -1244,7 +1244,7 @@ static void _audio_rx_clk_disable(void)
 			audio_rx_device_group = -1;
 
 			gpio_tlmm_config(
-					GPIO_CFG(audio_gpios.aux_pcm_dout, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA), GPIO_ENABLE);
+					GPIO_CFG(audio_gpios.aux_pcm_dout, 1, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
 		}
 		break;
 	case Q6_SDAC_RX:
