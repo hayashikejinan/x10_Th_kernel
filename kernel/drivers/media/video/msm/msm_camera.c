@@ -39,7 +39,6 @@
 #include <mach/camera.h>
 #include <linux/syscalls.h>
 #include <linux/hrtimer.h>
-
 DEFINE_MUTEX(hlist_mut);
 DEFINE_MUTEX(pp_prev_lock);
 DEFINE_MUTEX(pp_snap_lock);
@@ -836,6 +835,17 @@ static int msm_divert_snapshot(struct msm_sync *sync,
 
 	memset(&region, 0, sizeof(region));
 	buf.fmnum = msm_pmem_region_lookup(&sync->pmem_frames,
+					MSM_PMEM_THUMBNAIL,
+					&region, 1,
+					&sync->pmem_frame_spinlock);
+	if (buf.fmnum == 1) {
+		buf.fthumnail.buffer = (uint32_t)region.info.vaddr;
+		buf.fthumnail.y_off  = region.info.y_off;
+		buf.fthumnail.cbcr_off = region.info.cbcr_off;
+		buf.fthumnail.fd = region.info.fd;
+	}
+
+	buf.fmnum = msm_pmem_region_lookup(&sync->pmem_frames,
 					MSM_PMEM_MAINIMG,
 					&region, 1,
 					&sync->pmem_frame_spinlock);
@@ -844,10 +854,7 @@ static int msm_divert_snapshot(struct msm_sync *sync,
 		buf.fmain.y_off  = region.info.y_off;
 		buf.fmain.cbcr_off = region.info.cbcr_off;
 		buf.fmain.fd = region.info.fd;
-	} else {
-		if (buf.fmnum > 1)
-			pr_err("%s: MSM_PMEM_MAINIMG lookup found %d\n",
-				__func__, buf.fmnum);
+		goto end;
 	}
 
 	buf.fmnum = msm_pmem_region_lookup(&sync->pmem_frames,
@@ -863,7 +870,7 @@ static int msm_divert_snapshot(struct msm_sync *sync,
 			__func__, buf.fmnum);
 		return -EIO;
 	}
-
+end:
 	CDBG("%s: snapshot copy_to_user!\n", __func__);
 	if (copy_to_user((void *)(se->stats_event.data), &buf, sizeof(buf))) {
 		ERR_COPY_TO_USER();

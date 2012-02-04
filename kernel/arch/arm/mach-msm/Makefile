@@ -93,7 +93,8 @@ obj-$(CONFIG_MACH_QSD8X50_FFA) += board-qsd8x50.o
 obj-$(CONFIG_MACH_QSD8X50_COMET) += board-comet.o
 obj-$(CONFIG_MACH_QSD8X50A_SURF) += board-qsd8x50.o
 obj-$(CONFIG_MACH_QSD8X50A_FFA) += board-qsd8x50.o
-obj-$(CONFIG_ARCH_MSM8X60) += devices-msm8x60.o clock-8x60.o
+obj-$(CONFIG_ARCH_MSM8X60) += devices-msm8x60.o clock-8x60.o acpuclock-8x60.o
+obj-$(CONFIG_ARCH_MSM8X60) += clock-rpm.o
 obj-$(CONFIG_MACH_MSM8X60_RUMI3) += board-msm8x60.o
 obj-$(CONFIG_MACH_MSM8X60_SIM) += board-msm8x60.o
 obj-$(CONFIG_MACH_MSM8X60_SURF) += board-msm8x60.o
@@ -138,5 +139,5 @@ obj-$(CONFIG_MAX17040_FUELGAUGE) += semc_max17040_settings.o
 obj-$(CONFIG_SEMC_LOW_BATT_SHUTDOWN) += semc_low_batt_shutdown.o
 
 obj-$(CONFIG_SEMC_RPC_SERVER_HANDSET) += semc_rpc_server_handset.o
-obj-$(CONFIG_MSM_SPM) += spm.o
+obj-$(CONFIG_ARCH_MSM7X30) += spm.o
 obj-$(CONFIG_PMIC_TIME) += pmic_time.o

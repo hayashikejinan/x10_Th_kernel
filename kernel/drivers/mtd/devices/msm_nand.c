@@ -39,6 +39,7 @@ unsigned long msm_nandc11_phys;
 unsigned long ebi2_register_base;
 uint32_t dual_nand_ctlr_present;
 uint32_t interleave_enable;
+unsigned crci_mask;
 
 #define MSM_NAND_DMA_BUFFER_SIZE SZ_8K
 #define MSM_NAND_DMA_BUFFER_SLOTS \
@@ -249,7 +250,7 @@ unsigned flash_rd_reg(struct msm_nand_chip *chip, unsigned addr)
 
 	dsb();
 	msm_dmov_exec_cmd(
-		chip->dma_channel, 0, DMOV_CMD_PTR_LIST |
+		chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
 		DMOV_CMD_ADDR(msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
 	dsb();
 
@@ -283,7 +284,7 @@ void flash_wr_reg(struct msm_nand_chip *chip, unsigned addr, unsigned val)
 
 	dsb();
 	msm_dmov_exec_cmd(
-		chip->dma_channel, 0, DMOV_CMD_PTR_LIST |
+		chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
 		DMOV_CMD_ADDR(msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
 	dsb();
 
@@ -299,7 +300,6 @@ uint32_t flash_read_id(struct msm_nand_chip *chip)
 		unsigned data[7];
 	} *dma_buffer;
 	uint32_t rv;
-	unsigned crci_mask;
 
 	wait_event(chip->wait_queue, (dma_buffer = msm_nand_get_dma_buffer
 				(chip, sizeof(*dma_buffer))));
@@ -353,8 +353,6 @@ uint32_t flash_read_id(struct msm_nand_chip *chip)
 	dma_buffer->cmdptr = (msm_virt_to_dma(chip, dma_buffer->cmd) >> 3
 			) | CMD_PTR_LP;
 
-	crci_mask = msm_dmov_build_crci_mask(2,
-		DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 	dsb();
 	msm_dmov_exec_cmd(chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
 		DMOV_CMD_ADDR(msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
@@ -503,7 +501,6 @@ uint32_t flash_onfi_probe(struct msm_nand_chip *chip)
 	dma_addr_t dma_addr_identifier = 0;
 	unsigned cmd_set_count = 2;
 	unsigned crc_chk_count = 0;
-	unsigned crci_mask;
 
 	if (msm_nand_data.nr_parts) {
 		page_address = ((msm_nand_data.parts[0]).offset << 6);
@@ -651,8 +648,6 @@ uint32_t flash_onfi_probe(struct msm_nand_chip *chip)
 		dma_buffer->cmdptr = (msm_virt_to_dma(chip, dma_buffer->cmd)
 				>> 3) | CMD_PTR_LP;
 
-		crci_mask = msm_dmov_build_crci_mask(2,
-			DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 		dsb();
 		msm_dmov_exec_cmd(chip->dma_channel, crci_mask,
 			DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(msm_virt_to_dma(chip,
@@ -780,7 +775,6 @@ static int msm_nand_read_oob(struct mtd_info *mtd, loff_t from,
 	uint32_t ecc_errors;
 	uint32_t total_ecc_errors = 0;
 	unsigned cwperpage;
-	unsigned crci_mask;
 
 	if (mtd->writesize == 2048)
 		page = from >> 11;
@@ -1014,8 +1008,6 @@ static int msm_nand_read_oob(struct mtd_info *mtd, loff_t from,
 			(msm_virt_to_dma(chip, dma_buffer->cmd) >> 3)
 			| CMD_PTR_LP;
 
-		crci_mask = msm_dmov_build_crci_mask(2,
-			DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 		dsb();
 		msm_dmov_exec_cmd(chip->dma_channel, crci_mask,
 			DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(msm_virt_to_dma(chip,
@@ -1206,7 +1198,6 @@ static int msm_nand_read_oob_dualnandc(struct mtd_info *mtd, loff_t from,
 	uint32_t ecc_errors;
 	uint32_t total_ecc_errors = 0;
 	unsigned cwperpage;
-	unsigned crci_mask;
 
 	if (mtd->writesize == 2048)
 		page = from >> 11;
@@ -1821,8 +1812,6 @@ static int msm_nand_read_oob_dualnandc(struct mtd_info *mtd, loff_t from,
 			(msm_virt_to_dma(chip, dma_buffer->cmd) >> 3)
 			| CMD_PTR_LP;
 
-		crci_mask = msm_dmov_build_crci_mask(2,
-				DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 		dsb();
 		msm_dmov_exec_cmd(chip->dma_channel, crci_mask,
 			DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(msm_virt_to_dma(chip,
@@ -2055,7 +2044,6 @@ msm_nand_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 	unsigned page_count;
 	unsigned pages_written = 0;
 	unsigned cwperpage;
-	unsigned crci_mask;
 
 	if (mtd->writesize == 2048)
 		page = to >> 11;
@@ -2280,8 +2268,6 @@ msm_nand_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 			(msm_virt_to_dma(chip, dma_buffer->cmd) >> 3) |
 			CMD_PTR_LP;
 
-		crci_mask = msm_dmov_build_crci_mask(2,
-				DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 		dsb();
 		msm_dmov_exec_cmd(chip->dma_channel, crci_mask,
 			DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(
@@ -2392,7 +2378,6 @@ msm_nand_write_oob_dualnandc(struct mtd_info *mtd, loff_t to,
 	unsigned page_count;
 	unsigned pages_written = 0;
 	unsigned cwperpage;
-	unsigned crci_mask;
 
 	if (mtd->writesize == 2048)
 		page = to >> 11;
@@ -2865,8 +2850,6 @@ msm_nand_write_oob_dualnandc(struct mtd_info *mtd, loff_t to,
 		dma_buffer->cmdptr =
 		((msm_virt_to_dma(chip, dma_buffer->cmd) >> 3) | CMD_PTR_LP);
 
-		crci_mask = msm_dmov_build_crci_mask(2,
-				DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 		dsb();
 		msm_dmov_exec_cmd(chip->dma_channel, crci_mask,
 			DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(
@@ -2978,7 +2961,6 @@ msm_nand_erase(struct mtd_info *mtd, struct erase_info *instr)
 		unsigned data[10];
 	} *dma_buffer;
 	unsigned page = 0;
-	unsigned crci_mask;
 
 	if (mtd->writesize == 2048)
 		page = instr->addr >> 11;
@@ -3049,8 +3031,6 @@ msm_nand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	dma_buffer->cmdptr =
 		(msm_virt_to_dma(chip, dma_buffer->cmd) >> 3) | CMD_PTR_LP;
 
-	crci_mask = msm_dmov_build_crci_mask(2,
-		DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 	dsb();
 	msm_dmov_exec_cmd(
 		chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
@@ -3097,7 +3077,6 @@ msm_nand_erase_dualnandc(struct mtd_info *mtd, struct erase_info *instr)
 		unsigned data[12];
 	} *dma_buffer;
 	unsigned page = 0;
-	unsigned crci_mask;
 
 	if (mtd->writesize == 2048)
 		page = instr->addr >> 11;
@@ -3256,8 +3235,6 @@ msm_nand_erase_dualnandc(struct mtd_info *mtd, struct erase_info *instr)
 	dma_buffer->cmdptr =
 		(msm_virt_to_dma(chip, dma_buffer->cmd) >> 3) | CMD_PTR_LP;
 
-	crci_mask = msm_dmov_build_crci_mask(2,
-			DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 	dsb();
 	msm_dmov_exec_cmd(
 		chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
@@ -3314,7 +3291,6 @@ msm_nand_block_isbad_singlenandc(struct mtd_info *mtd, loff_t ofs)
 	uint8_t *buf;
 	unsigned page = 0;
 	unsigned cwperpage;
-	unsigned crci_mask;
 
 	if (mtd->writesize == 2048)
 		page = ofs >> 11;
@@ -3394,8 +3370,6 @@ msm_nand_block_isbad_singlenandc(struct mtd_info *mtd, loff_t ofs)
 	dma_buffer->cmdptr = (msm_virt_to_dma(chip,
 				dma_buffer->cmd) >> 3) | CMD_PTR_LP;
 
-	crci_mask = msm_dmov_build_crci_mask(2,
-			DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 	dsb();
 	msm_dmov_exec_cmd(chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
 		DMOV_CMD_ADDR(msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
@@ -3456,7 +3430,6 @@ msm_nand_block_isbad_dualnandc(struct mtd_info *mtd, loff_t ofs)
 	uint8_t *buf10;
 	unsigned page = 0;
 	unsigned cwperpage;
-	unsigned crci_mask;
 
 	if (mtd->writesize == 2048)
 		page = ofs >> 11;
@@ -3645,8 +3618,6 @@ msm_nand_block_isbad_dualnandc(struct mtd_info *mtd, loff_t ofs)
 	dma_buffer->cmdptr = (msm_virt_to_dma(chip,
 				dma_buffer->cmd) >> 3) | CMD_PTR_LP;
 
-	crci_mask = msm_dmov_build_crci_mask(2,
-		DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 	dsb();
 	msm_dmov_exec_cmd(chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST |
 		DMOV_CMD_ADDR(msm_virt_to_dma(chip, &dma_buffer->cmdptr)));
@@ -3813,7 +3784,6 @@ uint32_t flash_onenand_probe(struct msm_nand_chip *chip)
 
 	int err = 0;
 	uint32_t initialsflashcmd = 0;
-	unsigned crci_mask;
 
 	initialsflashcmd = flash_rd_reg(chip, MSM_NAND_SFLASHC_CMD);
 
@@ -3907,8 +3877,6 @@ uint32_t flash_onenand_probe(struct msm_nand_chip *chip)
 	dma_buffer->cmdptr = (msm_virt_to_dma(chip, dma_buffer->cmd)
 			>> 3) | CMD_PTR_LP;
 
-	crci_mask = msm_dmov_build_crci_mask(2,
-			DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 	dsb();
 	msm_dmov_exec_cmd(chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST
 			| DMOV_CMD_ADDR(msm_virt_to_dma(chip,
@@ -4029,7 +3997,6 @@ int msm_onenand_read_oob(struct mtd_info *mtd,
 	uint16_t controller_status;
 	uint16_t interrupt_status;
 	uint16_t ecc_status;
-	unsigned crci_mask;
 #if VERBOSE
 	pr_info("================================================="
 			"================\n");
@@ -4545,8 +4512,6 @@ int msm_onenand_read_oob(struct mtd_info *mtd,
 		dma_buffer->cmdptr = (msm_virt_to_dma(chip, dma_buffer->cmd)
 				>> 3) | CMD_PTR_LP;
 
-		crci_mask = msm_dmov_build_crci_mask(2,
-				DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 		dsb();
 		msm_dmov_exec_cmd(chip->dma_channel, crci_mask,
 			DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(msm_virt_to_dma(chip,
@@ -4722,7 +4687,6 @@ static int msm_onenand_write_oob(struct mtd_info *mtd, loff_t to,
 	uint16_t controller_status;
 	uint16_t interrupt_status;
 	uint16_t ecc_status;
-	unsigned crci_mask;
 
 #if VERBOSE
 	pr_info("================================================="
@@ -5292,8 +5256,6 @@ static int msm_onenand_write_oob(struct mtd_info *mtd, loff_t to,
 		dma_buffer->cmdptr = (msm_virt_to_dma(chip, dma_buffer->cmd)
 				>> 3) | CMD_PTR_LP;
 
-		crci_mask = msm_dmov_build_crci_mask(2,
-				DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 		dsb();
 		msm_dmov_exec_cmd(chip->dma_channel, crci_mask,
 			DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(msm_virt_to_dma(chip,
@@ -5460,7 +5422,6 @@ static int msm_onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	uint16_t ecc_status;
 
 	uint64_t temp;
-	unsigned crci_mask;
 
 #if VERBOSE
 	pr_info("================================================="
@@ -5718,8 +5679,6 @@ static int msm_onenand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	dma_buffer->cmdptr = (msm_virt_to_dma(chip, dma_buffer->cmd)
 			>> 3) | CMD_PTR_LP;
 
-	crci_mask = msm_dmov_build_crci_mask(2,
-			DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 	dsb();
 	msm_dmov_exec_cmd(chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST
 			| DMOV_CMD_ADDR(msm_virt_to_dma(chip,
@@ -5917,7 +5876,6 @@ static int msm_onenand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	uint16_t write_prot_status;
 
 	uint64_t start_ofs;
-	unsigned crci_mask;
 
 #if VERBOSE
 	pr_info("===================================================="
@@ -6185,8 +6143,6 @@ static int msm_onenand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		dma_buffer->cmdptr = (msm_virt_to_dma(chip, dma_buffer->cmd)
 				>> 3) | CMD_PTR_LP;
 
-		crci_mask = msm_dmov_build_crci_mask(2,
-				DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 		dsb();
 		msm_dmov_exec_cmd(chip->dma_channel, crci_mask,
 			DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(msm_virt_to_dma(chip,
@@ -6284,7 +6240,6 @@ static int msm_onenand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	uint16_t write_prot_status;
 
 	uint64_t start_ofs;
-	unsigned crci_mask;
 
 #if VERBOSE
 	pr_info("===================================================="
@@ -6552,8 +6507,6 @@ static int msm_onenand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		dma_buffer->cmdptr = (msm_virt_to_dma(chip, dma_buffer->cmd)
 				>> 3) | CMD_PTR_LP;
 
-		crci_mask = msm_dmov_build_crci_mask(2,
-				DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 		dsb();
 		msm_dmov_exec_cmd(chip->dma_channel, crci_mask,
 			DMOV_CMD_PTR_LIST | DMOV_CMD_ADDR(msm_virt_to_dma(chip,
@@ -6834,7 +6787,6 @@ static int msm_nand_nc10_xfr_settings(struct mtd_info *mtd)
 		unsigned cmdptr;
 	} *dma_buffer;
 	dmov_s *cmd;
-	unsigned crci_mask;
 
 	wait_event(chip->wait_queue,
 		(dma_buffer = msm_nand_get_dma_buffer(
@@ -6856,8 +6808,6 @@ static int msm_nand_nc10_xfr_settings(struct mtd_info *mtd)
 	dma_buffer->cmdptr = (msm_virt_to_dma(chip, dma_buffer->cmd) >> 3)
 				| CMD_PTR_LP;
 
-	crci_mask = msm_dmov_build_crci_mask(2,
-			DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 	dsb();
 	msm_dmov_exec_cmd(chip->dma_channel, crci_mask, DMOV_CMD_PTR_LIST
 			| DMOV_CMD_ADDR(msm_virt_to_dma(chip,
@@ -6907,96 +6857,88 @@ static int __devinit msm_nand_probe(struct platform_device *pdev)
 
 	plat_data = pdev->dev.platform_data;
 
-	if (plat_data->interleave)
-		interleave_enable = plat_data->interleave;
-
-	pr_info("%s: Interleave_enable = %d \n", __func__, interleave_enable);
-
 	res = platform_get_resource_byname(pdev,
 					IORESOURCE_MEM, "msm_nand_phys");
 	if (!res || !res->start) {
-		pr_err("msm_nand_phys resource invalid/absent\n");
+		pr_err("%s: msm_nand_phys resource invalid/absent\n",
+				__func__);
 		return -ENODEV;
 	}
 	msm_nand_phys = res->start;
-	pr_info("msm_nand: phys addr 0x%lx \n", msm_nand_phys);
+	pr_info("%s: phys addr 0x%lx \n", __func__, msm_nand_phys);
 
 	res = platform_get_resource_byname(pdev,
 					IORESOURCE_MEM, "msm_nandc01_phys");
-	if (!res || !res->start) {
-		pr_info("msm_nandc01_phys resource invalid/absent\n");
+	if (!res || !res->start)
 		goto no_dual_nand_ctlr_support;
-	}
 	msm_nandc01_phys = res->start;
-	pr_info("msm_nand: nandc01 phys addr 0x%lx \n", msm_nandc01_phys);
 
 	res = platform_get_resource_byname(pdev,
 					IORESOURCE_MEM, "msm_nandc10_phys");
-	if (!res || !res->start) {
-		pr_info("msm_nandc10_phys resource invalid/absent\n");
+	if (!res || !res->start)
 		goto no_dual_nand_ctlr_support;
-	}
 	msm_nandc10_phys = res->start;
-	pr_info("msm_nand: nandc10 phys addr 0x%lx \n", msm_nandc10_phys);
 
 	res = platform_get_resource_byname(pdev,
 					IORESOURCE_MEM, "msm_nandc11_phys");
-	if (!res || !res->start) {
-		pr_info("msm_nandc11_phys resource invalid/absent\n");
+	if (!res || !res->start)
 		goto no_dual_nand_ctlr_support;
-	}
 	msm_nandc11_phys = res->start;
-	pr_info("msm_nand: nandc11 phys addr 0x%lx \n", msm_nandc11_phys);
 
 	res = platform_get_resource_byname(pdev,
 					IORESOURCE_MEM, "ebi2_reg_base");
-	if (!res || !res->start) {
-		pr_info("ebi2_register_base resource invalid/absent\n");
+	if (!res || !res->start)
 		goto no_dual_nand_ctlr_support;
-	}
 	ebi2_register_base = res->start;
-	pr_info("msm_nand: ebi2 register base phys addr 0x%lx \n",
-						 ebi2_register_base);
 
 	dual_nand_ctlr_present = 1;
-	if (!interleave_enable && dual_nand_ctlr_present) {
-		pr_info("msm_nand: Dual Nand Controller present,\
-			pingpong enabled \n");
-	} else {
-		pr_info("msm_nand: Dual Nand Controller present,\
-			interleave enabled \n");
-	}
+	if (plat_data != NULL)
+		interleave_enable = plat_data->interleave;
+	else
+		interleave_enable = 0;
+
+
+	if (!interleave_enable)
+		pr_info("%s: Dual Nand Ctrl in ping-pong mode\n", __func__);
+	else
+		pr_info("%s: Dual Nand Ctrl in interleave mode\n", __func__);
 
 no_dual_nand_ctlr_support:
 	res = platform_get_resource_byname(pdev,
 					IORESOURCE_DMA, "msm_nand_dmac");
 	if (!res || !res->start) {
-		pr_err("invalid msm_nand_dmac resource");
+		pr_err("%s: invalid msm_nand_dmac resource\n", __func__);
 		return -ENODEV;
 	}
 
 	info = kzalloc(sizeof(struct msm_nand_info), GFP_KERNEL);
-	if (!info)
+	if (!info) {
+		pr_err("%s: No memory for msm_nand_info\n", __func__);
 		return -ENOMEM;
+	}
 
 	info->msm_nand.dev = &pdev->dev;
 
 	init_waitqueue_head(&info->msm_nand.wait_queue);
 
 	info->msm_nand.dma_channel = res->start;
-	pr_info("dmac 0x%x\n", info->msm_nand.dma_channel);
+	pr_info("%s: dmac 0x%x\n", __func__, info->msm_nand.dma_channel);
 
 	/* this currently fails if dev is passed in */
 	info->msm_nand.dma_buffer =
 		dma_alloc_coherent(/*dev*/ NULL, MSM_NAND_DMA_BUFFER_SIZE,
 				&info->msm_nand.dma_addr, GFP_KERNEL);
 	if (info->msm_nand.dma_buffer == NULL) {
+		pr_err("%s: No memory for msm_nand.dma_buffer\n", __func__);
 		err = -ENOMEM;
 		goto out_free_info;
 	}
 
-	pr_info("allocated dma buffer at %p, dma_addr %x\n",
-		info->msm_nand.dma_buffer, info->msm_nand.dma_addr);
+	pr_info("%s: allocated dma buffer at %p, dma_addr %x\n",
+		__func__, info->msm_nand.dma_buffer, info->msm_nand.dma_addr);
+
+	crci_mask = msm_dmov_build_crci_mask(2,
+			DMOV_NAND_CRCI_DATA, DMOV_NAND_CRCI_CMD);
 
 	info->mtd.name = pdev->dev.bus_id;
 	info->mtd.priv = &info->msm_nand;
@@ -7007,6 +6949,7 @@ no_dual_nand_ctlr_support:
 
 	if (msm_nand_scan(&info->mtd, 1))
 		if (msm_onenand_scan(&info->mtd, 1)) {
+			pr_err("%s: No nand device found\n", __func__);
 			err = -ENXIO;
 			goto out_free_dma_buffer;
 		}
