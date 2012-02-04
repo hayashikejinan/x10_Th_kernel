@@ -17,6 +17,7 @@
 #ifndef __ARCH_ARM_MACH_MSM_CLOCK_H
 #define __ARCH_ARM_MACH_MSM_CLOCK_H
 
+#include <linux/init.h>
 #include <linux/list.h>
 #include <mach/clk.h>
 
@@ -101,6 +102,14 @@ enum clkvote_client {
 	CLKVOTE_PMQOS,
 	CLKVOTE_MAX,
 };
+
+#ifdef CONFIG_DEBUG_FS
+int __init clock_debug_init(void);
+int __init clock_debug_add(struct clk *clock);
+#else
+static inline int __init clock_debug_init(void) { return 0; }
+static inline int __init clock_debug_add(struct clk *clock) { return 0; }
+#endif
 
 extern struct clk_ops clk_ops_remote;
 

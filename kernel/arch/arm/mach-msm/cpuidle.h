@@ -1,5 +1,4 @@
-/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
- * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
+/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -28,19 +27,22 @@
  *
  */
 
-#ifndef __ASM_ARCH_MSM_RPC_SERVER_HANDSET_H
-#define __ASM_ARCH_MSM_RPC_SERVER_HANDSET_H
+#ifndef __ARCH_ARM_MACH_MSM_CPUIDLE_H
+#define __ARCH_ARM_MACH_MSM_CPUIDLE_H
 
-struct msm_handset_platform_data {
-	const char *hs_name;
-	uint32_t pwr_key_delay_ms; /* default 500ms */
+#include "pm.h"
+
+struct msm_cpuidle_state {
+	unsigned int cpu;
+	int state_nr;
+	char *name;
+	char *desc;
+	enum msm_pm_sleep_mode mode_nr;
 };
 
-void report_headset_status(bool connected);
+void msm_cpuidle_set_states(struct msm_cpuidle_state *states,
+	int nr_states, struct msm_pm_platform_data *pm_data);
 
-#ifdef CONFIG_SEMC_SEPORT_PLATFORM
-int handset_register_vad_det_callback(int (*func)(int, void*),
-				      void *data);
-#endif /* CONFIG_SEMC_SEPORT_PLATFORM */
+int msm_cpuidle_init(void);
 
-#endif
+#endif /* __ARCH_ARM_MACH_MSM_CPUIDLE_H */

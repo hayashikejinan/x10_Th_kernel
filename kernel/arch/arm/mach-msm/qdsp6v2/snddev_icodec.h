@@ -1,5 +1,4 @@
-/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
- * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
+/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -27,20 +26,28 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#ifndef __MACH_QDSP6V2_SNDDEV_ICODEC_H
+#define __MACH_QDSP6V2_SNDDEV_ICODEC_H
+#include <mach/qdsp5v2/adie_marimba.h>
+#include <mach/qdsp5v2/audio_def.h>
+#include <mach/pmic.h>
 
-#ifndef __ASM_ARCH_MSM_RPC_SERVER_HANDSET_H
-#define __ASM_ARCH_MSM_RPC_SERVER_HANDSET_H
-
-struct msm_handset_platform_data {
-	const char *hs_name;
-	uint32_t pwr_key_delay_ms; /* default 500ms */
+struct snddev_icodec_data {
+	u32 capability; /* RX or TX */
+	const char *name;
+	u32 copp_id; /* audpp routing */
+	u32 acdb_id; /* Audio Cal purpose */
+	/* Adie profile */
+	struct adie_codec_dev_profile *profile;
+	/* Afe setting */
+	u8 channel_mode;
+	enum hsed_controller *pmctl_id; /* tx only enable mic bias */
+	u32 pmctl_id_sz;
+	u32 default_sample_rate;
+	void (*pamp_on) (void);
+	void (*pamp_off) (void);
+	s32 max_voice_rx_vol[VOC_RX_VOL_ARRAY_NUM]; /* [0]: NB,[1]: WB */
+	s32 min_voice_rx_vol[VOC_RX_VOL_ARRAY_NUM];
+	u32 dev_vol_type;
 };
-
-void report_headset_status(bool connected);
-
-#ifdef CONFIG_SEMC_SEPORT_PLATFORM
-int handset_register_vad_det_callback(int (*func)(int, void*),
-				      void *data);
-#endif /* CONFIG_SEMC_SEPORT_PLATFORM */
-
 #endif

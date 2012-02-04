@@ -1,5 +1,4 @@
-/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
- * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
+/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -27,20 +26,20 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#ifndef __MACH_QDSP6V2_SNDDEV_ECODEC_H
+#define __MACH_QDSP6V2_SNDDEV_ECODEC_H
+#include <mach/qdsp5v2/audio_def.h>
 
-#ifndef __ASM_ARCH_MSM_RPC_SERVER_HANDSET_H
-#define __ASM_ARCH_MSM_RPC_SERVER_HANDSET_H
-
-struct msm_handset_platform_data {
-	const char *hs_name;
-	uint32_t pwr_key_delay_ms; /* default 500ms */
+struct snddev_ecodec_data {
+	u32 capability; /* RX or TX */
+	const char *name;
+	u32 copp_id; /* audpp routing */
+	u32 acdb_id; /* Audio Cal purpose */
+	u8 channel_mode;
+	u32 conf_pcm_ctl_val;
+	u32 conf_aux_codec_intf;
+	u32 conf_data_format_padding_val;
+	s32 max_voice_rx_vol[VOC_RX_VOL_ARRAY_NUM]; /* [0]:NB, [1]:WB */
+	s32 min_voice_rx_vol[VOC_RX_VOL_ARRAY_NUM];
 };
-
-void report_headset_status(bool connected);
-
-#ifdef CONFIG_SEMC_SEPORT_PLATFORM
-int handset_register_vad_det_callback(int (*func)(int, void*),
-				      void *data);
-#endif /* CONFIG_SEMC_SEPORT_PLATFORM */
-
 #endif
