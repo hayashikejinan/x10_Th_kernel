@@ -70,7 +70,7 @@ struct clkctl_acpu_speed {
 	unsigned int     acpuclk_src_div;
 	unsigned int     ahbclk_khz;
 	unsigned int     ahbclk_div;
-	unsigned int     axiclk_khz;
+	unsigned int     ebi1clk_khz;
 	unsigned int     sc_core_src_sel_mask;
 	unsigned int     sc_l_value;
 	int              vdd;
@@ -220,7 +220,7 @@ static struct clock_state drv_state = { 0 };
 
 unsigned long clk_get_max_axi_khz(void)
 {
-	return 192000;
+	return 128000;
 }
 EXPORT_SYMBOL(clk_get_max_axi_khz);
 
@@ -527,11 +527,12 @@ int acpuclk_set_rate(int cpu, unsigned long rate, enum setrate_reason reason)
 	if (reason == SETRATE_SWFI)
 		goto out;
 
-	if (strt_s->axiclk_khz != tgt_s->axiclk_khz) {
+	if (strt_s->ebi1clk_khz != tgt_s->ebi1clk_khz) {
 		res = ebi1_clk_set_min_rate(CLKVOTE_ACPUCLK,
-			tgt_s->axiclk_khz * 1000);
+			tgt_s->ebi1clk_khz * 1000);
 		if (res < 0)
-			pr_warning("Setting AXI min rate failed (%d)\n", res);
+			pr_warning("Setting EBI1/AXI min rate failed (%d)\n",
+															res);
 	}
 
 	/* Nothing else to do for power collapse */
@@ -616,9 +617,9 @@ static void __init acpuclk_init(void)
 	}
 
 	drv_state.current_speed = speed;
-	res = ebi1_clk_set_min_rate(CLKVOTE_ACPUCLK, speed->axiclk_khz * 1000);
+	res = ebi1_clk_set_min_rate(CLKVOTE_ACPUCLK, speed->ebi1clk_khz * 1000);
 	if (res < 0)
-		pr_warning("Setting AXI min rate failed (%d)\n", res);
+		pr_warning("Setting EBI1/AXI min rate failed (%d)\n", res);
 
 	pr_info("ACPU running at %d KHz\n", speed->acpuclk_khz);
 }

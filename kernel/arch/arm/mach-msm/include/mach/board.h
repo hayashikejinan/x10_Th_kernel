@@ -128,6 +128,7 @@ struct msm_camera_sensor_info {
 	int vcm_pwd;
 	int vcm_enable;
 	int mclk;
+	int flash_type;
 	struct msm_camera_device_platform_data *pdata;
 	struct resource *resource;
 	uint8_t num_resources;
@@ -254,6 +255,12 @@ struct mipi_dsi_platform_data {
 struct msm_fb_platform_data {
 	int (*detect_client)(const char *name);
 	int mddi_prescan;
+	int (*allow_set_offset)(void);
+};
+
+struct msm_hdmi_platform_data {
+	int irq;
+	int (*cable_detect)(int insert);
 };
 
 struct msm_i2c_platform_data {

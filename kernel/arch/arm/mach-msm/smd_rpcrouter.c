@@ -517,7 +517,9 @@ int msm_rpcrouter_destroy_local_endpoint(struct msm_rpc_endpoint *ept)
 
 	wake_lock_destroy(&ept->read_q_wake_lock);
 	wake_lock_destroy(&ept->reply_q_wake_lock);
+	spin_lock_irqsave(&local_endpoints_lock, flags);
 	list_del(&ept->list);
+	spin_unlock_irqrestore(&local_endpoints_lock, flags);
 	kfree(ept);
 	return 0;
 }
@@ -2110,7 +2112,6 @@ static int msm_rpcrouter_add_xprt(struct rpcrouter_xprt *xprt)
 	if (!xprt_info)
 		return -ENOMEM;
 
-	xprt->priv = xprt_info;
 	xprt_info->xprt = xprt;
 	xprt_info->initialized = 0;
 	xprt_info->remote_pid = -1;
@@ -2151,6 +2152,8 @@ static int msm_rpcrouter_add_xprt(struct rpcrouter_xprt *xprt)
 
 	queue_work(xprt_info->workqueue, &xprt_info->read_data);
 
+	xprt->priv = xprt_info;
+
 	return 0;
 }
 
@@ -2160,9 +2163,8 @@ void msm_rpcrouter_xprt_notify(struct rpcrouter_xprt *xprt, unsigned event)
 	union rr_control_msg msg = { 0 };
 
 	/* TODO: need to close the transport upon close event */
-	if (event == RPCROUTER_XPRT_EVENT_OPEN) {
+	if (event == RPCROUTER_XPRT_EVENT_OPEN)
 		msm_rpcrouter_add_xprt(xprt);
-	}
 
 	if (!xprt_info) {
 		smsm_change_state(SMSM_APPS_STATE, 0, SMSM_RPCINIT);
@@ -2185,6 +2187,8 @@ void msm_rpcrouter_xprt_notify(struct rpcrouter_xprt *xprt, unsigned event)
 		return;
 	}
 
+	/* Check read_avail even for OPEN event to handle missed
+	  DATA events while processing the OPEN event*/
 	if (xprt->read_avail() >= xprt_info->need_len)
 		wake_lock(&xprt_info->wakelock);
 	wake_up(&xprt_info->read_wait);

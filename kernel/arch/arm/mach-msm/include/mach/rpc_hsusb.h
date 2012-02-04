@@ -43,7 +43,7 @@ void msm_chg_rpc_semc_get_usb_connected(enum semc_charger *connected, u16 *max_c
 	  CONFIG_SEMC_POWER_MODULE ||
 	  CONFIG_MAX17040_FUELGAUGE */
 
-#ifdef CONFIG_MSM_ONCRPCROUTER
+#if defined(CONFIG_MSM_ONCRPCROUTER) && !defined(CONFIG_ARCH_MSM8X60)
 int msm_hsusb_rpc_connect(void);
 int msm_hsusb_phy_reset(void);
 int msm_hsusb_vbus_powerup(void);

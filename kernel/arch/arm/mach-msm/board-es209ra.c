@@ -84,7 +84,7 @@
 #define TOUCHPAD_SUSPEND 	34
 #define TOUCHPAD_IRQ 		38
 
-#define MSM_PMEM_MDP_SIZE	0x1C91000
+#define MSM_PMEM_SF_SIZE	0x1700000
 
 #define SMEM_SPINLOCK_I2C	"S:6"
 
@@ -320,7 +320,7 @@ static int ulpi_write(void __iomem *addr, unsigned val, unsigned reg)
 	return 0;
 }
 
-struct clk *hs_clk, *phy_clk;
+static struct clk *hs_clk, *phy_clk;
 #define CLKRGM_APPS_RESET_USBH      37
 #define CLKRGM_APPS_RESET_USB_PHY   34
 static void msm_hsusb_apps_reset_link(int reset)
@@ -491,7 +491,7 @@ static struct android_pmem_platform_data android_pmem_kernel_smi_pdata = {
 
 static struct android_pmem_platform_data android_pmem_pdata = {
 	.name = "pmem",
-	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
+	.allocator_type = PMEM_ALLOCATORTYPE_ALLORNOTHING,
 	.cached = 1,
 };
 
@@ -2131,12 +2131,12 @@ static void __init pmem_kernel_smi_size_setup(char **p)
 __early_param("pmem_kernel_smi_size=", pmem_kernel_smi_size_setup);
 #endif
 
-static unsigned pmem_mdp_size = MSM_PMEM_MDP_SIZE;
-static void __init pmem_mdp_size_setup(char **p)
+static unsigned pmem_sf_size = MSM_PMEM_SF_SIZE;
+static void __init pmem_sf_size_setup(char **p)
 {
-	pmem_mdp_size = memparse(*p, p);
+	pmem_sf_size = memparse(*p, p);
 }
-__early_param("pmem_mdp_size=", pmem_mdp_size_setup);
+__early_param("pmem_sf_size=", pmem_sf_size_setup);
 
 static unsigned pmem_adsp_size = MSM_PMEM_ADSP_SIZE;
 static void __init pmem_adsp_size_setup(char **p)
@@ -2255,12 +2255,12 @@ static void __init es209ra_allocate_memory_regions(void)
 		__pa(MSM_PMEM_SMIPOOL_BASE));
 #endif
 
-	size = pmem_mdp_size;
+	size = pmem_sf_size;
 	if (size) {
 		addr = alloc_bootmem(size);
 		android_pmem_pdata.start = __pa(addr);
 		android_pmem_pdata.size = size;
-		pr_info("allocating %lu bytes at %p (%lx physical) for mdp "
+		pr_info("allocating %lu bytes at %p (%lx physical) for sf "
 			"pmem arena\n", size, addr, __pa(addr));
 	}
 
