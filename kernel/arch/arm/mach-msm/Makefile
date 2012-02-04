@@ -149,3 +149,6 @@ obj-$(CONFIG_SEMC_LOW_BATT_SHUTDOWN) += semc_low_batt_shutdown.o
 obj-$(CONFIG_SEMC_RPC_SERVER_HANDSET) += semc_rpc_server_handset.o
 obj-$(CONFIG_ARCH_MSM7X30) += spm.o
 obj-$(CONFIG_PMIC_TIME) += pmic_time.o
+
+obj-$(CONFIG_SMMU)		+= smmu_driver.o smmu_driver_enum.o
+obj-$(CONFIG_SMMU_8X60)		+= board-msm8x60-smmu.o

@@ -46,6 +46,7 @@ config ARCH_MSM8X60
 	select MSM_REMOTE_SPINLOCK_LDREX
 	select ARCH_REQUIRE_GPIOLIB
 	select MSM_ADM3
+	select REGULATOR
 
 endchoice
 
@@ -1153,14 +1154,14 @@ config SEMC_LOW_BATT_SHUTDOWN
 	  request to this function.
 
 config SEMC_RPC_SERVER_HANDSET
-       bool "Enable SEMC handset rpc dispatcher"
-       depends on (ARCH_SQD || ARCH_MSM) && MSM_ONCRPCROUTER
-       default n
-       help
-         This enables SEMC version of rpc_server_handset message
-	 dispatcher.
-	 This cannot cooperate with MSM_RPCSERVER_HANDSET. If this
-	 is set, an error will be generated.
+	bool "Enable SEMC handset rpc dispatcher"
+	depends on (ARCH_SQD || ARCH_MSM) && MSM_ONCRPCROUTER
+	default n
+	help
+	  This enables SEMC version of rpc_server_handset message
+	  dispatcher.
+	  This cannot cooperate with MSM_RPCSERVER_HANDSET. If this
+	  is set, an error will be generated.
 
 config PMIC_TIME
 	bool "Export pmic time as sysfs entry"
@@ -1168,4 +1169,27 @@ config PMIC_TIME
 	default n
 	help
 	  This exports pmic time in a sysfs entry.
+
+config SMMU_8X60
+	bool
+
+config SMMU
+	bool "System MMU support"
+	depends on MMU
+	select VCM_MM
+	select SMMU_8X60 if ARCH_MSM8X60
+	depends on ARCH_MSM8X60
+	default n
+	help
+	  This is the System MMU driver for 8x60.
+
+config SMMU_PGTABLES_L2
+	bool "Allow SMMU page tables in the L2 cache (Experimental)"
+	depends on SMMU=y
+	depends on MMU
+	depends on CPU_DCACHE_DISABLE=n
+	default y
+	help
+	 Improves page fault latency at the expense of potential L2 pollution.
+	 Most people can probably say Y here.
 endif

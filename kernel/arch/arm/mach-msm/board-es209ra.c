@@ -1719,6 +1719,19 @@ static struct platform_device pmic_time_device = {
 };
 #endif
 
+static struct platform_device *early_devices[] __initdata = {
+#ifdef CONFIG_GPIOLIB
+	&msm_gpio_devices[0],
+	&msm_gpio_devices[1],
+	&msm_gpio_devices[2],
+	&msm_gpio_devices[3],
+	&msm_gpio_devices[4],
+	&msm_gpio_devices[5],
+	&msm_gpio_devices[6],
+	&msm_gpio_devices[7],
+#endif
+};
+
 static struct platform_device *devices[] __initdata = {
 	&msm_wlan_ar6000_pm_device,
 	&msm_fb_device,
@@ -2186,6 +2199,8 @@ static void __init es209ra_init(void)
 	printk(KERN_ERR "PVR0F2: %x\n", get_predecode_repair_cache());
 	set_predecode_repair_cache();
 	printk(KERN_ERR "PVR0F2: %x\n", get_predecode_repair_cache());
+	msm_clock_init(msm_clocks_8x50, msm_num_clocks_8x50);
+	platform_add_devices(early_devices, ARRAY_SIZE(early_devices));
 
 #ifdef CONFIG_SMC91X
 	es209ra_cfg_smc91x();
@@ -2307,7 +2322,6 @@ static void __init es209ra_map_io(void)
 	msm_shared_ram_phys = MSM_SHARED_RAM_PHYS;
 	msm_map_qsd8x50_io();
 	es209ra_allocate_memory_regions();
-	msm_clock_init(msm_clocks_8x50, msm_num_clocks_8x50);
 }
 
 static int __init board_serialno_setup(char *serialno)
