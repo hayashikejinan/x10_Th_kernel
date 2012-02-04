@@ -45,6 +45,7 @@ config ARCH_MSM8X60
 	select CPU_V7
 	select MSM_REMOTE_SPINLOCK_LDREX
 	select ARCH_REQUIRE_GPIOLIB
+	select MSM_ADM3
 
 endchoice
 
@@ -65,6 +66,8 @@ config  ARCH_MSM_ARM11
 	bool
 config  ARCH_MSM_SCORPION
 	bool
+config  ARCH_MSM_SCORPIONMP
+	bool
 
 config  MSM_VIC
 	bool
@@ -74,6 +77,8 @@ config MSM_REMOTE_SPINLOCK_DEKKERS
 config MSM_REMOTE_SPINLOCK_SWP
 	bool
 config MSM_REMOTE_SPINLOCK_LDREX
+	bool
+config MSM_ADM3
 	bool
 
 menu "MSM Board Selection"
@@ -562,6 +567,13 @@ config MSM_SERIAL_DEBUGGER_CONSOLE
 	  Enables a console so that printk messages are displayed on
 	  the debugger serial port as the occur.
 
+config MSM_PROC_COMM
+	default y
+	bool "Proc-Comm RPC Interface"
+	help
+	  Enables a lightweight communications interface to the
+	  baseband processor.
+
 config MSM_SMD
 	bool "MSM Shared Memory Driver (SMD)"
 	help
@@ -573,19 +585,32 @@ config MSM_SMD
 
 choice
 	prompt "MSM Shared memory interface version"
+	depends on MSM_SMD
 	default MSM_SMD_PKG3 if ARCH_MSM_ARM11
 	default MSM_SMD_PKG4 if ARCH_MSM_SCORPION
 
 	config MSM_SMD_PKG3
 	  bool
 	    prompt "Package 3"
-	    select MSM_SMD
 
 	config MSM_SMD_PKG4
 	  bool
 	    prompt "Package 4"
-	    select MSM_SMD
 endchoice
+
+config MSM_RPC_SDIO_XPRT
+	depends on MSM_SDIO_AL
+	default y
+	bool "MSM SDIO XPRT Layer"
+	help
+	  SDIO Transport Layer for RPC Rouer
+
+config MSM_RPC_SDIO_DEBUG
+	depends on MSM_RPC_SDIO_XPRT
+	default y
+	bool "MSM SDIO XPRT debug support"
+	help
+	  Support for debugging SDIO XPRT
 
 config MSM_SMD_DEBUG
 	depends on MSM_SMD
@@ -594,6 +619,14 @@ config MSM_SMD_DEBUG
 	help
 	  Support for debugging the SMD for communication
 	  between the ARM9 and ARM11
+
+config MSM_SDIO_AL
+	depends on ARCH_MSM7X30
+	default y
+	tristate "SDIO-Abstraction-Layer"
+	help
+	  Support MSM<->MDM Communication over SDIO bus.
+	  MDM SDIO-Client should have pipes support.
 
 config MSM_N_WAY_SMD
 	depends on (MSM_SMD && (ARCH_MSM_SCORPION || ARCH_MSM7X27))
@@ -740,6 +773,14 @@ config MSM_RMT_STORAGE_SERVER
 	  Provide RPC mechanism for remote processors to access storage
 	  device on apps processor.
 
+config MSM_RMT_STORAGE_SERVER_STATS
+	depends on (MSM_RMT_STORAGE_SERVER && DEBUG_FS)
+	default n
+	bool "Remote storage RPC server performance statistics"
+	help
+	  Collects performance statistics and shows this information
+	  through a debugfs file rmt_storage_stats.
+
 config MSM_DALRPC
 	bool "DAL RPC support"
 	depends on ARCH_MSM_SCORPION
@@ -801,6 +842,14 @@ config MSM_ADSP
 	help
 	  Provides access to registers needed by the userspace aDSP library.
 
+config MSM7KV2_AUDIO
+	bool "MSM7K v2 audio"
+	depends on (ARCH_MSM7X30 && ANDROID_PMEM)
+	default y
+	help
+	  Enables QDSP5V2-based audio drivers for audio playbacks and
+	  voice call.
+
 config MSM_ADSP_DEBUG_LEVEL
 	depends on (MSM_ADSP || MSM7KV2_AUDIO)
 	int "Debug level for an adsp module"
@@ -808,18 +857,6 @@ config MSM_ADSP_DEBUG_LEVEL
 	default 1
 	help
 	  Debug level acress the adsp module:
-	  0 - Disables all the messages including error messages
-	  1 - Prints error messages only (Default)
-	  2 - Prints both error and info messages
-	  3 - Prints all the messages including debug messages
-
-config MSM_AUDIO_DEBUG_LEVEL
-	depends on (MSM_ADSP || MSM7KV2_AUDIO || MSM_QDSP6)
-	int "Debug level for an audio module"
-	range 0 3
-	default 1
-	help
-	  Debug level acress the audio module:
 	  0 - Disables all the messages including error messages
 	  1 - Prints error messages only (Default)
 	  2 - Prints both error and info messages
@@ -833,26 +870,30 @@ config MSM_ADSP_REPORT_EVENTS
 	  Normally, only messages from the aDSP are reported to userspace.
 	  With this option, we report events from the aDSP as well.
 
-config MSM7KV2_AUDIO
-	bool "MSM7K v2 audio"
-	depends on (ARCH_MSM7X30 && ANDROID_PMEM)
-	default y
-	help
-	  Enables QDSP5V2-based audio drivers for audio playbacks and
-	  voice call.
-
-config MSM_VREG_SWITCH_INVERTED
-	bool "Reverse vreg switch polarity"
-	default n
-	help
-	  Reverses the enable and disable for vreg switch.
-
 config MSM_QDSP6
 	tristate "QDSP6 support"
 	depends on ARCH_QSD8X50 && ANDROID_PMEM
 	default y
 	help
 	  Enable support for qdsp6. This provides audio and video functionality.
+
+config MSM_AUDIO_DEBUG_LEVEL
+	depends on (MSM_ADSP || MSM7KV2_AUDIO || MSM_QDSP6)
+	int "Debug level for an audio module"
+	range 0 3
+	default 1
+	help
+	  Debug level acress the audio module:
+	  0 - Disables all the messages including error messages
+	  1 - Prints error messages only (Default)
+	  2 - Prints both error and info messages
+	  3 - Prints all the messages including debug messages
+
+config MSM_VREG_SWITCH_INVERTED
+	bool "Reverse vreg switch polarity"
+	default n
+	help
+	  Reverses the enable and disable for vreg switch.
 
 config MSM_DMA_TEST
 	tristate "MSM DMA test module"
@@ -1029,6 +1070,14 @@ config NPA_REMOTE_ONCRPC
 	help
 	  Enables Linux NPA clients to talk to NPA nodes in the modem
 	  using ONCRPC communication protocol.
+
+config MSM_NPA_PROC_COMM
+	bool "Enables NPA remoting through PROC-COMM to issue requests"
+	depends on MSM_NPA_REMOTE_ONCRPC && MSM_PROC_COMM
+	default n
+	help
+	 Enables the use of PROC-COMM to make requests instead of ONCRPC.
+	 ONCRPC is however still required for NPA setup.
 
 config ES209RA_INPUT_GPIO_MATRIX
 	bool "ES209RA GPIO key matrix driver"

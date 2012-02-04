@@ -1,16 +1,14 @@
 obj-y += io.o dma.o memory.o
-obj-y += proc_comm.o
-obj-y += vreg.o mpp.o
-obj-y += vreg.o
-obj-y += clock.o clock-pcom.o
-obj-y += nand_partitions.o
+obj-y += clock.o
 obj-y += modem_notifier.o
-obj-y += rpc_hsusb.o rpc_pmapp.o rpc_fsusb.o
-obj-y += socinfo.o
 obj-$(CONFIG_CPU_FREQ_MSM) += cpufreq.o
 obj-$(CONFIG_DEBUG_FS) += nohlt.o
-obj-y += pmic.o
-obj-y += internal_power_rail.o
+
+obj-$(CONFIG_MSM_PROC_COMM) += proc_comm.o clock-pcom.o internal_power_rail.o
+obj-$(CONFIG_MSM_PROC_COMM) += vreg.o mpp.o
+ifdef CONFIG_MSM_PROC_COMM
+	obj-$(CONFIG_DEBUG_FS) += pmic_debugfs.o
+endif
 
 obj-$(CONFIG_ARCH_MSM_ARM11) += acpuclock.o timer.o gpio.o generic_gpio.o
 obj-$(CONFIG_ARCH_MSM_SCORPION) += timer.o gpio.o generic_gpio.o
@@ -41,13 +39,15 @@ $(obj)/smd_rpc_sym.c: $(src)/smd_rpc_sym $(src)/mkrpcsym.pl
 obj-$(CONFIG_ARCH_QSD8X50) += sirc.o
 obj-$(CONFIG_MSM_FIQ_SUPPORT) += fiq_glue.o
 obj-$(CONFIG_MACH_TROUT) += board-trout-rfkill.o
-obj-$(CONFIG_MSM_SMD) += smd.o smd_debug.o remote_spinlock.o last_amsslog.o
+obj-$(CONFIG_MSM_SDIO_AL) += sdio_al.o
+obj-$(CONFIG_MSM_SMD) += smd.o smd_debug.o remote_spinlock.o socinfo.o last_amsslog.o
+obj-$(CONFIG_MSM_SMD) += nand_partitions.o pmic.o
+obj-$(CONFIG_MSM_SMD) += rpc_hsusb.o rpc_pmapp.o rpc_fsusb.o
 obj-$(CONFIG_MSM_SMD_LOGGING) += smem_log.o
 obj-$(CONFIG_MSM_SMD_TTY) += smd_tty.o
 obj-$(CONFIG_MSM_SMD_QMI) += smd_qmi.o
 obj-$(CONFIG_MSM_SMD_CTL) += smd_ctl2.o
 obj-$(CONFIG_MSM_SMD_NMEA) += smd_nmea.o
-obj-$(CONFIG_DEBUG_FS) += pmic_debugfs.o
 obj-$(CONFIG_MSM_RESET_MODEM) += reset_modem.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_device.o
@@ -56,6 +56,7 @@ obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_servers.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_clients.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_xdr.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += rpcrouter_smd_xprt.o
+obj-$(CONFIG_MSM_RPC_SDIO_XPRT) += rpcrouter_sdio_xprt.o
 obj-$(CONFIG_MSM_RPC_PING) += ping_mdm_rpc_client.o
 obj-$(CONFIG_MSM_RPC_PROC_COMM_TEST) += proc_comm_test.o
 obj-$(CONFIG_MSM_RPC_PING) += ping_mdm_rpc_client.o ping_apps_server.o
@@ -75,6 +76,9 @@ ifdef CONFIG_MSM_N_WAY_SMSM
 else
 	obj-$(CONFIG_PM) += pm.o
 endif
+ifndef CONFIG_PM
+	obj-y += no-pm.o
+endif
 obj-$(CONFIG_MSM_DMA_TEST) += dma_test.o
 obj-$(CONFIG_SURF_FFA_GPIO_KEYPAD) += keypad-surf-ffa.o
 
@@ -89,6 +93,7 @@ obj-$(CONFIG_MACH_QSD8X50_FFA) += board-qsd8x50.o
 obj-$(CONFIG_MACH_QSD8X50_COMET) += board-comet.o
 obj-$(CONFIG_MACH_QSD8X50A_SURF) += board-qsd8x50.o
 obj-$(CONFIG_MACH_QSD8X50A_FFA) += board-qsd8x50.o
+obj-$(CONFIG_ARCH_MSM8X60) += devices-msm8x60.o clock-8x60.o
 obj-$(CONFIG_MACH_MSM8X60_RUMI3) += board-msm8x60.o
 obj-$(CONFIG_MACH_MSM8X60_SIM) += board-msm8x60.o
 obj-$(CONFIG_MACH_ES209RA) += board-es209ra.o board-es209ra-keypad.o msm_vibrator.o

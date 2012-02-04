@@ -102,4 +102,11 @@ config MAX17040_FUELGAUGE
 	help
 	  This enable MAX17040 fuel gauge.
 
+config BATTERY_MSM_FAKE
+	tristate "Fake MSM battery"
+	depends on ARCH_MSM && BATTERY_MSM
+	default n
+	help
+	  Say Y to bypass actual battery queries.
+
 endif # POWER_SUPPLY

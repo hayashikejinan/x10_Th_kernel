@@ -660,7 +660,7 @@ exit_idle_exit:
 static void msm_timer_get_sclk_time_start(
 	struct msm_timer_sync_data_t *data)
 {
-	data->timeout = 1000000;
+	data->timeout = 200000;
 }
 
 /*
@@ -669,6 +669,7 @@ static void msm_timer_get_sclk_time_start(
 static bool msm_timer_get_sclk_time_expired(
 	struct msm_timer_sync_data_t *data)
 {
+	udelay(10);
 	return --data->timeout <= 0;
 }
 
