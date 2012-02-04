@@ -191,7 +191,7 @@ struct msm_sync {
 #define MSM_APPS_ID_V4L2 "msm_v4l2"
 #define MSM_APPS_ID_PROP "msm_qct"
 
-struct msm_device {
+struct msm_cam_device {
 	struct msm_sync *sync; /* most-frequently accessed */
 	struct device *device;
 	struct cdev cdev;
@@ -202,7 +202,7 @@ struct msm_device {
 };
 
 struct msm_control_device {
-	struct msm_device *pmsm;
+	struct msm_cam_device *pmsm;
 
 	/* Used for MSM_CAM_IOCTL_CTRL_CMD_DONE responses */
 	uint8_t ctrl_data[max_control_command_size];
@@ -296,6 +296,8 @@ enum msm_camio_clk_type {
 	CAMIO_CSI1_CLK,
 	CAMIO_CSI0_PCLK,
 	CAMIO_CSI1_PCLK,
+	CAMIO_JPEG_CLK,
+	CAMIO_JPEG_PCLK,
 	CAMIO_MAX_CLK
 };
 
@@ -335,6 +337,8 @@ enum msm_s_setting {
 };
 
 int msm_camio_enable(struct platform_device *dev);
+int msm_camio_jpeg_clk_enable(void);
+int msm_camio_jpeg_clk_disable(void);
 
 int  msm_camio_clk_enable(enum msm_camio_clk_type clk);
 int  msm_camio_clk_disable(enum msm_camio_clk_type clk);

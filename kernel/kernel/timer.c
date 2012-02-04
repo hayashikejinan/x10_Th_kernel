@@ -1581,3 +1581,47 @@ unsigned long msleep_interruptible(unsigned int msecs)
 }
 
 EXPORT_SYMBOL(msleep_interruptible);
+
+static int __sched do_usleep_range(unsigned long min, unsigned long max)
+{
+	ktime_t kmin;
+	unsigned long delta;
+
+	kmin = ktime_set(0, min * NSEC_PER_USEC);
+	delta = max - min;
+	return schedule_hrtimeout_range(&kmin, delta, HRTIMER_MODE_REL);
+}
+
+/**
+ * usleep_range - Drop in replacement for udelay where wakeup is flexible
+ * @min: Minimum time in usecs to sleep
+ * @max: Maximum time in usecs to sleep
+ */
+void usleep_range(unsigned long min, unsigned long max)
+{
+	__set_current_state(TASK_UNINTERRUPTIBLE);
+	do_usleep_range(min, max);
+}
+EXPORT_SYMBOL(usleep_range);
+
+/**
+ * usleep_range_interruptible - sleep waiting for signals
+ * @min: Minimum time in usecs to sleep
+ * @max: Maximum time in usecs to sleep
+ */
+unsigned long usleep_range_interruptible(unsigned long min, unsigned long max)
+{
+	int err;
+	ktime_t start;
+
+	start = ktime_get();
+
+	__set_current_state(TASK_INTERRUPTIBLE);
+	err = do_usleep_range(min, max);
+
+	if (err == -EINTR)
+		return ktime_us_delta(ktime_get(), start);
+	else
+		return 0;
+}
+EXPORT_SYMBOL(usleep_range_interruptible);

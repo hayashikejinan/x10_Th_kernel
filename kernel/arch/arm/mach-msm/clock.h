@@ -43,7 +43,8 @@ struct clk_ops {
 	int (*set_max_rate)(unsigned id, unsigned rate);
 	int (*set_flags)(unsigned id, unsigned flags);
 	unsigned (*get_rate)(unsigned id);
-	signed (*measure_rate)(unsigned id);
+	int (*list_rate)(unsigned id, unsigned n);
+	int (*measure_rate)(unsigned id);
 	unsigned (*is_enabled)(unsigned id);
 	long (*round_rate)(unsigned id, unsigned rate);
 };
@@ -83,19 +84,6 @@ struct clk {
 #define CLK_MAX CLKFLAG_MAX
 #define CLK_MINMAX (CLK_MIN | CLK_MAX)
 #define NR_CLKS	P_NR_CLKS
-
-enum {
-	PLL_0 = 0,
-	PLL_1,
-	PLL_2,
-	PLL_3,
-	PLL_4,
-	PLL_5,
-	PLL_6,
-	PLL_7,
-	PLL_8,
-	NUM_PLL
-};
 
 enum clkvote_client {
 	CLKVOTE_ACPUCLK = 0,

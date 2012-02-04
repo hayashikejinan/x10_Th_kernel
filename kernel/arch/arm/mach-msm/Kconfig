@@ -52,9 +52,11 @@ config ARCH_MSM8X60
 	select ARCH_REQUIRE_GPIOLIB
 	select MSM_ADM3
 	select REGULATOR
+	select MSM_PIL
 	select MSM8660_TLMM
 	select ARCH_HAS_CPU_IDLE_WAIT
 	select MSM_DIRECT_SCLK_ACCESS
+	select MSM_RPM
 
 endchoice
 
@@ -80,6 +82,9 @@ config  ARCH_MSM_SCORPIONMP
 
 config  MSM_VIC
 	bool
+
+config MSM_RPM
+	bool "Resource Power Manager"
 
 config MSM_REMOTE_SPINLOCK_DEKKERS
 	bool
@@ -361,24 +366,24 @@ config PHYS_OFFSET
 
 config KERNEL_PMEM_EBI_REGION
 	bool "Enable in-kernel PMEM region for EBI"
-	default n
+	default y if ARCH_MSM8X60
 	depends on ANDROID_PMEM && ARCH_MSM8X60
 	help
-	   Enable the in-kernel PMEM alloator to use EBI memory.
+	   Enable the in-kernel PMEM allocator to use EBI memory.
 
 config KERNEL_PMEM_SMI_REGION
 	bool "Enable in-kernel PMEM region for SMI"
-	default n
-	depends on ARCH_QSD8X50 && !PMEM_GPU0
+	default y if ARCH_MSM8X60
+	depends on ANDROID_PMEM && ((ARCH_QSD8X50 && !PMEM_GPU0) || (ARCH_MSM8X60 && !VCM))
 	help
-	   Enable the in-kernel PMEM alloator to use SMI memory.
+	   Enable the in-kernel PMEM allocator to use SMI memory.
 
 config PMEM_GPU0
 	bool "Enable PMEM GPU0 region"
 	default y
 	depends on ARCH_QSD8X50 && ANDROID_PMEM
 	help
-	  Enable the PMEM GPU0 device
+	  Enable the PMEM GPU0 device on SMI Memory.
 
 config MSM_AMSS_VERSION
 	int
@@ -1198,6 +1203,17 @@ config PMIC_TIME
 	default n
 	help
 	  This exports pmic time in a sysfs entry.
+
+config MSM_PIL
+	bool "Peripheral image loading"
+	select FW_LOADER
+	depends on ARCH_MSM8X60
+	default n
+	help
+	  Some peripherals need to be loaded into memory before they can be
+	  brought out of reset.
+
+	  Say yes to support these devices.
 
 config SMMU_8X60
 	bool
