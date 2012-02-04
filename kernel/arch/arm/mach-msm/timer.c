@@ -136,6 +136,8 @@ struct msm_timer_sync_data_t {
 static irqreturn_t msm_timer_interrupt(int irq, void *dev_id)
 {
 	struct clock_event_device *evt = dev_id;
+	if (evt->event_handler == NULL)
+		return IRQ_HANDLED;
 	evt->event_handler(evt);
 	return IRQ_HANDLED;
 }
@@ -849,6 +851,8 @@ static void __init msm_timer_init(void)
 		struct clock_event_device *ce = &clock->clockevent;
 		struct clocksource *cs = &clock->clocksource;
 		writel(0, clock->regbase + TIMER_ENABLE);
+		writel(1, clock->regbase + TIMER_CLEAR);
+		writel(0, clock->regbase + TIMER_COUNT_VAL);
 		writel(~0, clock->regbase + TIMER_MATCH_VAL);
 
 		if ((clock->freq << clock->shift) == GPT_HZ) {
@@ -894,6 +898,8 @@ void __cpuinit local_timer_setup(struct clock_event_device *evt)
 	struct msm_clock *clock = &msm_clocks[MSM_GLOBAL_TIMER];
 
 	writel(0, clock->regbase  + TIMER_ENABLE);
+	writel(1, clock->regbase + TIMER_CLEAR);
+	writel(0, clock->regbase + TIMER_COUNT_VAL);
 	writel(~0, clock->regbase + TIMER_MATCH_VAL);
 
 	evt->irq = clock->irq.irq;

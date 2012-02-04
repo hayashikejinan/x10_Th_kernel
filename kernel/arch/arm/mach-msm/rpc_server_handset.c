@@ -45,9 +45,6 @@ static struct seport_plug_detect_data *seport_vad_data;
 
 #define HS_RPC_PROG 0x30000091
 
-#define HS_RPC_VERS_1 0x00010001
-#define HS_RPC_VERS_2 0x00020001
-
 #define HS_SUBSCRIBE_SRVC_PROC 0x03
 #define HS_REPORT_EVNT_PROC    0x05
 #define HS_EVENT_CB_PROC	1
@@ -64,6 +61,8 @@ static struct seport_plug_detect_data *seport_vad_data;
 #ifdef CONFIG_ES209RA_HEADSET
 #define HS_HEADSET_SWITCH_OFF_K 0x85
 #endif
+#define HS_HEADSET_SWITCH_2_K	0xF0
+#define HS_HEADSET_SWITCH_3_K	0xF1
 #define HS_REL_K		0xFF	/* key release */
 
 #define KEY(hs_key, input_key) ((hs_key << 24) | input_key)
@@ -171,12 +170,20 @@ static const uint32_t hs_key_map[] = {
 #ifdef CONFIG_ES209RA_HEADSET
 	KEY(HS_HEADSET_SWITCH_OFF_K, KEY_MEDIA),
 #endif
+	KEY(HS_HEADSET_SWITCH_2_K, KEY_VOLUMEUP),
+	KEY(HS_HEADSET_SWITCH_3_K, KEY_VOLUMEDOWN),
 	0
 };
 
 enum {
 	NO_DEVICE	= 0,
 	MSM_HEADSET	= 1,
+};
+/* Add newer versions at the top of array */
+static const unsigned int rpc_vers[] = {
+	0x00030001,
+	0x00020001,
+	0x00010001,
 };
 
 struct msm_handset {
@@ -256,6 +263,8 @@ static void report_hs_key(uint32_t key_code, uint32_t key_parm)
 		break;
 
 	case KEY_MEDIA:
+	case KEY_VOLUMEUP:
+	case KEY_VOLUMEDOWN:
 		/* This should be the HSSD button */
 #ifdef CONFIG_SEMC_SEPORT_PLATFORM
 		if (seport_vad_data) {
@@ -474,25 +483,27 @@ static int hs_cb_func(struct msm_rpc_client *client, void *buffer, int in_size)
 
 static int __init hs_rpc_cb_init(void)
 {
-	int rc = 0;
+	int rc = 0, i, num_vers;
 
-	/* version 2 is used in 7x30 */
-	rpc_client = msm_rpc_register_client("hs",
-			HS_RPC_PROG, HS_RPC_VERS_2, 0, hs_cb_func);
+	num_vers = ARRAY_SIZE(rpc_vers);
 
-	if (IS_ERR(rpc_client)) {
-		pr_err("%s: couldn't open rpc client with version 2 err %ld\n",
-			 __func__, PTR_ERR(rpc_client));
-		/*version 1 is used in 7x27, 8x50 */
+	for (i = 0; i < num_vers; i++) {
 		rpc_client = msm_rpc_register_client("hs",
-			HS_RPC_PROG, HS_RPC_VERS_1, 0, hs_cb_func);
+			HS_RPC_PROG, rpc_vers[i], 0, hs_cb_func);
+
+		if (IS_ERR(rpc_client))
+			pr_debug("%s: RPC Client version %d failed, fallback\n",
+				 __func__, rpc_vers[i]);
+		else
+			break;
 	}
 
 	if (IS_ERR(rpc_client)) {
-		pr_err("%s: couldn't open rpc client with version 1 err %ld\n",
+		pr_err("%s: Incompatible RPC version error %ld\n",
 			 __func__, PTR_ERR(rpc_client));
 		return PTR_ERR(rpc_client);
 	}
+
 	rc = msm_rpc_client_req(rpc_client, HS_SUBSCRIBE_SRVC_PROC,
 				hs_rpc_register_subs_arg, NULL,
 				hs_rpc_register_subs_res, NULL, -1);
@@ -509,14 +520,16 @@ static int __devinit hs_rpc_init(void)
 	int rc;
 
 	rc = hs_rpc_cb_init();
-	if (rc)
+	if (rc) {
 		pr_err("%s: failed to initialize rpc client\n", __func__);
+		return rc;
+	}
 
 	rc = msm_rpc_create_server(&hs_rpc_server);
-	if (rc < 0)
+	if (rc)
 		pr_err("%s: failed to create rpc server\n", __func__);
 
-	return 0;
+	return rc;
 }
 
 static void __devexit hs_rpc_deinit(void)
@@ -538,7 +551,7 @@ static ssize_t msm_headset_print_name(struct switch_dev *sdev, char *buf)
 
 static int __devinit hs_probe(struct platform_device *pdev)
 {
-	int rc;
+	int rc = 0;
 	struct input_dev *ipdev;
 
 	hs = kzalloc(sizeof(struct msm_handset), GFP_KERNEL);
@@ -575,6 +588,8 @@ static int __devinit hs_probe(struct platform_device *pdev)
 	ipdev->id.version	= 1;
 
 	input_set_capability(ipdev, EV_KEY, KEY_MEDIA);
+	input_set_capability(ipdev, EV_KEY, KEY_VOLUMEUP);
+	input_set_capability(ipdev, EV_KEY, KEY_VOLUMEDOWN);
 	/* input_set_capability(ipdev, EV_SW, SW_HEADPHONE_INSERT); */
 	input_set_capability(ipdev, EV_KEY, KEY_POWER);
 	input_set_capability(ipdev, EV_KEY, KEY_END);
@@ -589,8 +604,10 @@ static int __devinit hs_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, hs);
 
 	rc = hs_rpc_init();
-	if (rc)
+	if (rc) {
+		dev_err(&ipdev->dev, "rpc init failure\n");
 		goto err_hs_rpc_init;
+	}
 
 	return 0;
 
