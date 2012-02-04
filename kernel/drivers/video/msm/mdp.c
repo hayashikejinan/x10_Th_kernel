@@ -30,6 +30,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/pm_runtime.h>
 
 #include <asm/system.h>
 #include <asm/mach-types.h>
@@ -801,6 +802,24 @@ static void mdp_drv_init(void)
 static int mdp_probe(struct platform_device *pdev);
 static int mdp_remove(struct platform_device *pdev);
 
+static int mdp_runtime_suspend(struct device *dev)
+{
+	dev_dbg(dev, "pm_runtime: suspending...\n");
+	return 0;
+}
+
+static int mdp_runtime_resume(struct device *dev)
+{
+	dev_dbg(dev, "pm_runtime: resuming...\n");
+	return 0;
+}
+
+static struct dev_pm_ops mdp_dev_pm_ops = {
+	.runtime_suspend = mdp_runtime_suspend,
+	.runtime_resume = mdp_runtime_resume,
+};
+
+
 static struct platform_driver mdp_driver = {
 	.probe = mdp_probe,
 	.remove = mdp_remove,
@@ -817,6 +836,7 @@ static struct platform_driver mdp_driver = {
 		 * platform.c.
 		 */
 		.name = "mdp",
+		.pm = &mdp_dev_pm_ops,
 	},
 };
 
@@ -915,6 +935,7 @@ static int mdp_irq_clk_setup(void)
 
 	return 0;
 }
+int mdp_ver;
 
 static int mdp_probe(struct platform_device *pdev)
 {
@@ -931,6 +952,7 @@ static int mdp_probe(struct platform_device *pdev)
 
 	if ((pdev->id == 0) && (pdev->num_resources > 0)) {
 		mdp_pdata = pdev->dev.platform_data;
+		mdp_ver = mdp_pdata->mdp_ver;
 
 		size =  resource_size(&pdev->resource[0]);
 		msm_mdp_base = ioremap(pdev->resource[0].start, size);
@@ -1156,6 +1178,10 @@ static int mdp_probe(struct platform_device *pdev)
 		goto mdp_probe_err;
 	}
 
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
+
 	pdev_list[pdev_list_cnt++] = pdev;
 	return 0;
 
@@ -1200,6 +1226,7 @@ static void mdp_early_suspend(struct early_suspend *h)
 static int mdp_remove(struct platform_device *pdev)
 {
 	iounmap(msm_mdp_base);
+	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
 

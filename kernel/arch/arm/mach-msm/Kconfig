@@ -683,7 +683,7 @@ config MSM_SMD_DEBUG
 	  between the ARM9 and ARM11
 
 config MSM_SDIO_AL
-	depends on ARCH_MSM7X30
+	depends on (ARCH_MSM7X30 && HAS_WAKELOCK)
 	default y
 	tristate "SDIO-Abstraction-Layer"
 	help
@@ -1144,6 +1144,14 @@ config NPA_REMOTE_ONCRPC
 	  Enables Linux NPA clients to talk to NPA nodes in the modem
 	  using ONCRPC communication protocol.
 
+config MSM_NPA_SYSTEM_BUS
+	bool "NPA-managed System Bus (AXI) rates through PM_QOS."
+	depends on MSM_NPA_REMOTE
+	default n
+	help
+	  PM_QOS System Bus rate requests are interpreted as 'Flow IDs' and
+	  are routed through the NPA framework.
+
 config MSM_NPA_PROC_COMM
 	bool "Enables NPA remoting through PROC-COMM to issue requests"
 	depends on MSM_NPA_REMOTE_ONCRPC && MSM_PROC_COMM
@@ -1217,6 +1225,17 @@ config MSM_PIL
 
 config SMMU_8X60
 	bool
+
+config MSM_RPM_LOG
+	tristate "MSM Resource Power Manager Log Driver"
+	depends on DEBUG_FS
+	depends on ARCH_MSM8X60
+	default n
+	help
+	  This option enables a driver which can read from a circular buffer
+	  of messages produced by the RPM. These messages provide diagnostic
+	  information about RPM operation. The driver outputs the messages
+	  via a debugfs node.
 
 config SMMU
 	bool "System MMU support"

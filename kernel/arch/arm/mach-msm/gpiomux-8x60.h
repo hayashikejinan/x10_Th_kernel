@@ -24,18 +24,50 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  */
-#ifndef __MACH_PERIPHERAL_LOADER_H
-#define __MACH_PERIPHERAL_LOADER_H
+#ifndef __ARCH_ARM_MACH_MSM_GPIOMUX_8X60_H
+#define __ARCH_ARM_MACH_MSM_GPIOMUX_8X60_H
 
-#ifdef CONFIG_MSM_PIL
-extern void *pil_get(const char *name);
-extern void pil_put(void *peripheral_handle);
-extern int pil_force_reset(const char *name);
-#else
-static inline void *pil_get(const char *name) { return NULL; }
-static inline void pil_put(void *peripheral_handle) { }
-static inline int pil_force_reset(const char *name) { return -ENOSYS; }
-#endif
+#define GPIOMUX_NGPIOS 173
+
+typedef u16 gpiomux_config_t;
+
+enum {
+	GPIOMUX_DRV_2MA  = 0UL << 6,
+	GPIOMUX_DRV_4MA  = 1UL << 6,
+	GPIOMUX_DRV_6MA  = 2UL << 6,
+	GPIOMUX_DRV_8MA  = 3UL << 6,
+	GPIOMUX_DRV_10MA = 4UL << 6,
+	GPIOMUX_DRV_12MA = 5UL << 6,
+	GPIOMUX_DRV_14MA = 6UL << 6,
+	GPIOMUX_DRV_16MA = 7UL << 6,
+};
+
+enum {
+	GPIOMUX_FUNC_GPIO = 0UL  << 2,
+	GPIOMUX_FUNC_1    = 1UL  << 2,
+	GPIOMUX_FUNC_2    = 2UL  << 2,
+	GPIOMUX_FUNC_3    = 3UL  << 2,
+	GPIOMUX_FUNC_4    = 4UL  << 2,
+	GPIOMUX_FUNC_5    = 5UL  << 2,
+	GPIOMUX_FUNC_6    = 6UL  << 2,
+	GPIOMUX_FUNC_7    = 7UL  << 2,
+	GPIOMUX_FUNC_8    = 8UL  << 2,
+	GPIOMUX_FUNC_9    = 9UL  << 2,
+	GPIOMUX_FUNC_A    = 10UL << 2,
+	GPIOMUX_FUNC_B    = 11UL << 2,
+	GPIOMUX_FUNC_C    = 12UL << 2,
+	GPIOMUX_FUNC_D    = 13UL << 2,
+	GPIOMUX_FUNC_E    = 14UL << 2,
+	GPIOMUX_FUNC_F    = 15UL << 2,
+};
+
+enum {
+	GPIOMUX_PULL_NONE   = 0UL,
+	GPIOMUX_PULL_DOWN   = 1UL,
+	GPIOMUX_PULL_KEEPER = 2UL,
+	GPIOMUX_PULL_UP     = 3UL,
+};
 
 #endif

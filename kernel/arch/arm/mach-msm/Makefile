@@ -52,7 +52,6 @@ obj-$(CONFIG_MSM_SMD) += smd.o smd_debug.o remote_spinlock.o socinfo.o last_amss
 ifndef CONFIG_ARCH_MSM8X60
 	obj-$(CONFIG_MSM_SMD) += nand_partitions.o pmic.o
 	obj-$(CONFIG_MSM_ONCRPCROUTER) += rpc_hsusb.o rpc_pmapp.o rpc_fsusb.o
-	obj-$(CONFIG_MSM_SMD_LOGGING) += smem_log.o
 endif
 obj-$(CONFIG_MSM_SMD_TTY) += smd_tty.o
 obj-$(CONFIG_MSM_SMD_QMI) += smd_qmi.o
@@ -68,6 +67,7 @@ obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_clients.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += smd_rpcrouter_xdr.o
 obj-$(CONFIG_MSM_ONCRPCROUTER) += rpcrouter_smd_xprt.o
 obj-$(CONFIG_MSM_RPC_SDIO_XPRT) += rpcrouter_sdio_xprt.o
+obj-$(CONFIG_MSM_SMD_LOGGING) += smem_log.o
 obj-$(CONFIG_MSM_RPC_PING) += ping_mdm_rpc_client.o
 obj-$(CONFIG_MSM_RPC_PROC_COMM_TEST) += proc_comm_test.o
 obj-$(CONFIG_MSM_RPC_PING) += ping_mdm_rpc_client.o ping_apps_server.o
@@ -111,7 +111,7 @@ obj-$(CONFIG_MACH_QSD8X50A_FFA) += board-qsd8x50.o
 obj-$(CONFIG_MACH_QSD8X50A_ST1_5) += board-qsd8x50a-st1x.o
 obj-$(CONFIG_ARCH_MSM8X60) += devices-msm8x60.o
 obj-$(CONFIG_ARCH_MSM8X60) += clock-local.o clock-8x60.o acpuclock-8x60.o
-obj-$(CONFIG_ARCH_MSM8X60) += clock-rpm.o spm.o restart.o
+obj-$(CONFIG_ARCH_MSM8X60) += clock-8x60_mxo.o clock-rpm.o spm.o restart.o
 obj-$(CONFIG_ARCH_MSM8X60) += subsystem-fatal-8x60.o
 
 ifdef CONFIG_ARCH_MSM8X60
@@ -155,7 +155,7 @@ obj-$(CONFIG_MSM_MISC_MODEM_API) += misc_modem_api.o
 
 obj-$(CONFIG_ES209RA_HEADSET) += es209ra_headset.o
 
-obj-$(CONFIG_NPA) += npa_resources.o
+obj-$(CONFIG_NPA) += npa.o npa_resources.o npa_pm_qos.o msm_reqs.o
 obj-$(CONFIG_NPA_REMOTE_ONCRPC)	+= npa_remote_rpc_client.o
 
 obj-$(CONFIG_MAX17040_FUELGAUGE) += semc_max17040_settings.o
@@ -164,6 +164,7 @@ obj-$(CONFIG_SEMC_LOW_BATT_SHUTDOWN) += semc_low_batt_shutdown.o
 obj-$(CONFIG_SEMC_RPC_SERVER_HANDSET) += semc_rpc_server_handset.o
 obj-$(CONFIG_ARCH_MSM7X30) += spm.o
 obj-$(CONFIG_MSM_RPM) += rpm.o
+obj-$(CONFIG_MSM_RPM_LOG) += rpm_log.o
 obj-$(CONFIG_PMIC_TIME) += pmic_time.o
 
 obj-$(CONFIG_SMMU)		+= smmu_driver.o smmu_driver_enum.o
@@ -176,3 +177,5 @@ endif
 obj-$(CONFIG_MSM7200A_TLMM)	+= tlmm-msm7200a.o
 obj-$(CONFIG_MSM8660_TLMM)	+= tlmm-msm8660.o msm8660-gpio.o
 obj-$(CONFIG_MSM_BUS_SCALING)	+= msm_bus_core.o
+obj-$(CONFIG_MSM7200A_TLMM)	+= gpiomux.o gpiomux-7x00.o
+obj-$(CONFIG_MSM8660_TLMM)	+= gpiomux.o gpiomux-8x60.o

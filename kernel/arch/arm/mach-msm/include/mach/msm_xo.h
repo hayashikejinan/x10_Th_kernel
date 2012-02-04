@@ -25,17 +25,45 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef __MACH_PERIPHERAL_LOADER_H
-#define __MACH_PERIPHERAL_LOADER_H
+#ifndef __MACH_MSM_XO_H
+#define __MACH_MSM_XO_H
 
-#ifdef CONFIG_MSM_PIL
-extern void *pil_get(const char *name);
-extern void pil_put(void *peripheral_handle);
-extern int pil_force_reset(const char *name);
+enum msm_xo_ids {
+	TCXO_D0,
+	TCXO_D1,
+	TCXO_A0,
+	TCXO_A1,
+	PXO,
+	NUM_XO_IDS
+};
+
+enum msm_xo_modes {
+	XO_MODE_OFF,
+	XO_MODE_PIN_CTRL,
+	XO_MODE_ON,
+	NUM_XO_MODES
+};
+
+struct msm_xo_voter;
+
+#ifdef CONFIG_MSM_XO
+struct msm_xo_voter *msm_xo_get(enum msm_xo_ids xo_id, const char *voter);
+void msm_xo_put(struct msm_xo_voter *xo_voter);
+int msm_xo_mode_vote(struct msm_xo_voter *xo_voter, enum msm_xo_modes xo_mode);
 #else
-static inline void *pil_get(const char *name) { return NULL; }
-static inline void pil_put(void *peripheral_handle) { }
-static inline int pil_force_reset(const char *name) { return -ENOSYS; }
-#endif
+static inline struct msm_xo_voter *msm_xo_get(enum msm_xo_ids xo_id,
+		const char *voter)
+{
+	return NULL;
+}
+
+static inline void msm_xo_put(struct msm_xo_voter *xo_voter) { }
+
+static inline int msm_xo_mode_vote(struct msm_xo_voter *xo_voter,
+		enum msm_xo_modes xo_mode)
+{
+	return 0;
+}
+#endif /* CONFIG_MSM_XO */
 
 #endif

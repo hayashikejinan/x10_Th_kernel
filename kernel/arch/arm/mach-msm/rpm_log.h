@@ -24,18 +24,27 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  */
-#ifndef __MACH_PERIPHERAL_LOADER_H
-#define __MACH_PERIPHERAL_LOADER_H
 
-#ifdef CONFIG_MSM_PIL
-extern void *pil_get(const char *name);
-extern void pil_put(void *peripheral_handle);
-extern int pil_force_reset(const char *name);
-#else
-static inline void *pil_get(const char *name) { return NULL; }
-static inline void pil_put(void *peripheral_handle) { }
-static inline int pil_force_reset(const char *name) { return -ENOSYS; }
-#endif
+#ifndef __ARCH_ARM_MACH_MSM_RPM_LOG_H
+#define __ARCH_ARM_MACH_MSM_RPM_LOG_H
 
-#endif
+#include <linux/types.h>
+
+enum {
+	MSM_RPM_LOG_PAGE_INDICES,
+	MSM_RPM_LOG_PAGE_BUFFER,
+	MSM_RPM_LOG_PAGE_COUNT
+};
+
+struct msm_rpm_log_platform_data {
+	u32 reg_offsets[MSM_RPM_LOG_PAGE_COUNT];
+	u32 log_len;
+	u32 log_len_mask;
+	phys_addr_t phys_addr_base;
+	u32 phys_size;
+	void __iomem *reg_base;
+};
+
+#endif /* __ARCH_ARM_MACH_MSM_RPM_LOG_H */
