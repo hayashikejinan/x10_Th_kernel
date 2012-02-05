@@ -451,8 +451,9 @@ int kgsl_yamato_setstate(struct kgsl_device *device, uint32_t flags)
 			*cmds++ = 0x7fff; /* invalidate all base pointers */
 			sizedwords += 2;
 		}
-		kgsl_ringbuffer_issuecmds(device, 1, &link[0], sizedwords);
 
+		kgsl_ringbuffer_issuecmds(device, KGSL_CMD_FLAGS_PMODE,
+					&link[0], sizedwords);
 	} else {
 		KGSL_MEM_DBG("regs\n");
 
@@ -506,6 +507,7 @@ kgsl_yamato_getchipid(struct kgsl_device *device)
 int kgsl_yamato_init(struct kgsl_device *device, struct kgsl_devconfig *config)
 {
 	int status = -EINVAL;
+	int init_reftimestamp = 0x7fffffff;
 	struct kgsl_memregion *regspace = &device->regspace;
 	unsigned int memflags = KGSL_MEMFLAGS_ALIGNPAGE | KGSL_MEMFLAGS_CONPHYS;
 
@@ -515,38 +517,35 @@ int kgsl_yamato_init(struct kgsl_device *device, struct kgsl_devconfig *config)
 		KGSL_DRV_VDBG("return %d\n", 0);
 		return 0;
 	}
+	memset(device, 0, sizeof(*device));
 
 	init_waitqueue_head(&device->ib1_wq);
 
-	if (regspace->mmio_virt_base == NULL) {
-		memcpy(regspace, &config->regspace, sizeof(device->regspace));
-		if (regspace->mmio_phys_base == 0 || regspace->sizebytes == 0) {
-			KGSL_DRV_ERR("dev %d invalid regspace\n", device->id);
-			goto error;
-		}
-		if (!request_mem_region(regspace->mmio_phys_base,
-					regspace->sizebytes, DRIVER_NAME)) {
-			KGSL_DRV_ERR("request_mem_region failed for memory\n");
-			status = -ENODEV;
-			goto error;
-		}
-
-		regspace->mmio_virt_base = ioremap(regspace->mmio_phys_base,
-				regspace->sizebytes);
-		KGSL_MEM_INFO("ioremap(regs) = %p\n", regspace->mmio_virt_base);
-		if (regspace->mmio_virt_base == NULL) {
-			KGSL_DRV_ERR("ioremap failed for register memory\n");
-			release_mem_region(regspace->mmio_phys_base,
-					   regspace->sizebytes);
-			memset(regspace, 0, sizeof(regspace));
-			status = -ENODEV;
-			goto error;
-		}
-
-		KGSL_DRV_INFO("dev %d regs phys 0x%08x size 0x%08x virt %p\n",
-				device->id, regspace->mmio_phys_base,
-				regspace->sizebytes, regspace->mmio_virt_base);
+	memcpy(regspace, &config->regspace, sizeof(device->regspace));
+	if (regspace->mmio_phys_base == 0 || regspace->sizebytes == 0) {
+		KGSL_DRV_ERR("dev %d invalid regspace\n", device->id);
+		goto error;
 	}
+	if (!request_mem_region(regspace->mmio_phys_base,
+				regspace->sizebytes, DRIVER_NAME)) {
+		KGSL_DRV_ERR("request_mem_region failed for register memory\n");
+		status = -ENODEV;
+		goto error;
+	}
+
+	regspace->mmio_virt_base = ioremap(regspace->mmio_phys_base,
+					   regspace->sizebytes);
+	KGSL_MEM_INFO("ioremap(regs) = %p\n", regspace->mmio_virt_base);
+	if (regspace->mmio_virt_base == NULL) {
+		KGSL_DRV_ERR("ioremap failed for register memory\n");
+		status = -ENODEV;
+		goto error_release_mem;
+	}
+
+	KGSL_DRV_INFO("dev %d regs phys 0x%08x size 0x%08x virt %p\n",
+			device->id, regspace->mmio_phys_base,
+			regspace->sizebytes, regspace->mmio_virt_base);
+
 
 	memcpy(&device->gmemspace, &config->gmemspace,
 			sizeof(device->gmemspace));
@@ -596,7 +595,7 @@ int kgsl_yamato_init(struct kgsl_device *device, struct kgsl_devconfig *config)
 	status = kgsl_mmu_init(device);
 	if (status != 0) {
 		status = -ENODEV;
-		goto error;
+		goto error_iounmap;
 	}
 
 	status = kgsl_cmdstream_init(device);
@@ -612,6 +611,10 @@ int kgsl_yamato_init(struct kgsl_device *device, struct kgsl_devconfig *config)
 		goto error_close_cmdstream;
 	}
 	kgsl_sharedmem_set(&device->memstore, 0, 0, device->memstore.size);
+
+	kgsl_sharedmem_writel(&device->memstore,
+			     KGSL_DEVICE_MEMSTORE_OFFSET(ref_wait_ts),
+			     init_reftimestamp);
 
 	kgsl_yamato_regwrite(device, REG_RBBM_DEBUG, 0x00080000);
 
@@ -631,18 +634,33 @@ error_close_cmdstream:
 	kgsl_cmdstream_close(device);
 error_close_mmu:
 	kgsl_mmu_close(device);
+error_iounmap:
+	iounmap(regspace->mmio_virt_base);
+	regspace->mmio_virt_base = NULL;
+error_release_mem:
+	release_mem_region(regspace->mmio_phys_base, regspace->sizebytes);
 error:
 	return status;
 }
 
 int kgsl_yamato_close(struct kgsl_device *device)
 {
+	struct kgsl_memregion *regspace = &device->regspace;
+
 	if (device->memstore.hostptr)
 		kgsl_sharedmem_free(&device->memstore);
 
 	kgsl_mmu_close(device);
 
 	kgsl_cmdstream_close(device);
+
+	if (regspace->mmio_virt_base != NULL) {
+		KGSL_MEM_INFO("iounmap(regs) = %p\n", regspace->mmio_virt_base);
+		iounmap(regspace->mmio_virt_base);
+		regspace->mmio_virt_base = NULL;
+		release_mem_region(regspace->mmio_phys_base,
+					regspace->sizebytes);
+	}
 
 	KGSL_DRV_VDBG("return %d\n", 0);
 	device->flags &= ~KGSL_FLAGS_INITIALIZED;
@@ -794,6 +812,20 @@ int kgsl_yamato_getproperty(struct kgsl_device *device,
 				break;
 			}
 			if (copy_to_user(value, &mmuProp, sizeof(mmuProp))) {
+				status = -EFAULT;
+				break;
+			}
+			status = 0;
+		}
+		break;
+	case KGSL_PROP_INTERRUPT_WAITS:
+		{
+			int int_waits = 1;
+			if (sizebytes != sizeof(int)) {
+				status = -EINVAL;
+				break;
+			}
+			if (copy_to_user(value, &int_waits, sizeof(int))) {
 				status = -EFAULT;
 				break;
 			}
@@ -977,18 +1009,52 @@ int kgsl_yamato_regwrite(struct kgsl_device *device, unsigned int offsetwords,
 	return 0;
 }
 
+static int kgsl_check_interrupt_timestamp(struct kgsl_device *device,
+					unsigned int timestamp)
+{
+	int status;
+	unsigned int ref_ts, enableflag;
+
+	status = kgsl_cmdstream_check_timestamp(device, timestamp);
+	if (!status) {
+		mutex_lock(&kgsl_driver.mutex);
+		kgsl_sharedmem_readl(&device->memstore, &enableflag,
+			KGSL_DEVICE_MEMSTORE_OFFSET(ts_cmp_enable));
+
+		if (enableflag) {
+			kgsl_sharedmem_readl(&device->memstore, &ref_ts,
+				KGSL_DEVICE_MEMSTORE_OFFSET(ref_wait_ts));
+			if (timestamp_cmp(ref_ts, timestamp))
+				kgsl_sharedmem_writel(&device->memstore,
+				KGSL_DEVICE_MEMSTORE_OFFSET(ref_wait_ts),
+				timestamp);
+		} else {
+			kgsl_sharedmem_writel(&device->memstore,
+				KGSL_DEVICE_MEMSTORE_OFFSET(ref_wait_ts),
+				timestamp);
+			enableflag = 1;
+			kgsl_sharedmem_writel(&device->memstore,
+				KGSL_DEVICE_MEMSTORE_OFFSET(ts_cmp_enable),
+				enableflag);
+		}
+		mutex_unlock(&kgsl_driver.mutex);
+	}
+
+	return status;
+}
+
+/* MUST be called with the kgsl_driver.mutex held */
 int kgsl_yamato_waittimestamp(struct kgsl_device *device,
 				unsigned int timestamp,
 				unsigned int msecs)
 {
 	long status;
 
-	KGSL_DRV_INFO("enter (device=%p,timestamp=%d,timeout=0x%08x)\n",
-			device, timestamp, msecs);
-
+	mutex_unlock(&kgsl_driver.mutex);
 	status = wait_event_interruptible_timeout(device->ib1_wq,
-			kgsl_cmdstream_check_timestamp(device, timestamp),
+			kgsl_check_interrupt_timestamp(device, timestamp),
 			msecs_to_jiffies(msecs));
+	mutex_lock(&kgsl_driver.mutex);
 
 	if (status > 0)
 		status = 0;
@@ -999,7 +1065,6 @@ int kgsl_yamato_waittimestamp(struct kgsl_device *device,
 		}
 	}
 
-	KGSL_DRV_INFO("return %d\n", (int)status);
 	return (int)status;
 }
 

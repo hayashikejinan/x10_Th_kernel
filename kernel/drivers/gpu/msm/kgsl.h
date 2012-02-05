@@ -44,14 +44,6 @@
 #define DRIVER_NAME "kgsl"
 #define CHIP_REV_251 0x020501
 
-/* Flags to control whether to flush or invalidate a cached memory range */
-#define KGSL_CACHE_INV		0x00000000
-#define KGSL_CACHE_CLEAN	0x00000001
-#define KGSL_CACHE_FLUSH	0x00000002
-
-#define KGSL_CACHE_USER_ADDR	0x00000010
-#define KGSL_CACHE_VMALLOC_ADDR	0x00000020
-
 enum kgsl_clk_freq {
 	KGSL_AXI_HIGH_2D = 0,
 	KGSL_AXI_HIGH_3D = 1,
@@ -61,6 +53,18 @@ enum kgsl_clk_freq {
 	KGSL_3D_MAX_FREQ = 5,
 	KGSL_NUM_FREQ
 };
+
+/* Flags to control whether to flush or invalidate a cached memory range */
+#define KGSL_CACHE_INV		0x00000000
+#define KGSL_CACHE_CLEAN	0x00000001
+#define KGSL_CACHE_FLUSH	0x00000002
+
+#define KGSL_CACHE_USER_ADDR	0x00000010
+#define KGSL_CACHE_VMALLOC_ADDR	0x00000020
+
+/*cache coherency ops */
+#define DRM_KGSL_GEM_CACHE_OP_TO_DEV	0x0001
+#define DRM_KGSL_GEM_CACHE_OP_FROM_DEV	0x0002
 
 struct kgsl_driver {
 	struct miscdevice misc;
@@ -121,6 +125,7 @@ enum kgsl_status {
 #define KGSL_TRUE 1
 #define KGSL_FALSE 0
 
+#ifdef CONFIG_MSM_KGSL_2D
 #define KGSL_G12_PRE_HWACCESS() \
 while (1) { \
 	if (kgsl_driver.g12_device.hwaccess_blocked == KGSL_FALSE) { \
@@ -134,6 +139,12 @@ while (1) { \
 	wait_for_completion(&kgsl_driver.g12_device.hwaccess_gate); \
 	mutex_lock(&kgsl_driver.mutex); \
 }
+#else
+#define KGSL_G12_PRE_HWACCESS() do { \
+	return -ENODEV; \
+	} while (0)
+#endif
+
 #define KGSL_G12_POST_HWACCESS() mutex_unlock(&kgsl_driver.mutex)
 
 #define KGSL_PRE_HWACCESS() \
@@ -177,7 +188,7 @@ int kgsl_regwrite(struct kgsl_device *device, unsigned int offsetwords,
 #ifdef CONFIG_MSM_KGSL_DRM
 extern int kgsl_drm_init(struct platform_device *dev);
 extern void kgsl_drm_exit(void);
-extern void kgsl_gpu_mem_flush(void);
+extern void kgsl_gpu_mem_flush(int op);
 #else
 static inline int kgsl_drm_init(struct platform_device *dev)
 {

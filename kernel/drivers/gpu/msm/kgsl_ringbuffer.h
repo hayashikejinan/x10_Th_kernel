@@ -183,6 +183,7 @@ struct kgsl_ringbuffer {
 
 #define GSL_RB_WRITE(ring, data) \
 	do { \
+		mb(); \
 		writel(data, ring); \
 		ring++; \
 	} while (0)
@@ -248,7 +249,7 @@ int kgsl_ringbuffer_init(struct kgsl_device *device);
 int kgsl_ringbuffer_close(struct kgsl_ringbuffer *rb);
 
 uint32_t kgsl_ringbuffer_issuecmds(struct kgsl_device *device,
-					int pmodeoff,
+					unsigned int flags,
 					unsigned int *cmdaddr,
 					int sizedwords);
 
