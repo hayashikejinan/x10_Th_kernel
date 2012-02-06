@@ -759,7 +759,6 @@ static struct mddi_platform_data mddi_pdata = {
 
 static struct msm_panel_common_pdata mdp_pdata = {
 	.gpio = 98,
-	.mdp_ver = 1,
 };
 
 static void __init msm_fb_add_devices(void)
@@ -850,10 +849,10 @@ static void __init msm_mddi_tmd_fwvga_display_device_init(void)
 	panel_data->panel_info.lcd.v_back_porch = 12;
 	panel_data->panel_info.lcd.v_front_porch = 2;
 	panel_data->panel_info.lcd.v_pulse_width = 0;
-	panel_data->panel_info.lcd.hw_vsync_mode = TRUE;
-	panel_data->panel_info.lcd.vsync_notifier_period = 0;
+	panel_data->panel_info.lcd.hw_vsync_mode = FALSE;
+	panel_data->panel_info.lcd.vsync_notifier_period = (1 * HZ);
 
-	panel_data->panel_info.lcd.refx100 = 100000000 / 16766;
+	panel_data->panel_info.lcd.refx100 = 6500;
 
 	panel_data->panel_ext = &tmd_wvga_panel_ext;
 

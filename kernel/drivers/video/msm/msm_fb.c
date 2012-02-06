@@ -150,6 +150,7 @@ int msm_fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 
 static int msm_fb_resource_initialized;
 
+#if 0
 #ifndef CONFIG_FB_BACKLIGHT
 static int lcd_backlight_registered;
 
@@ -179,7 +180,7 @@ static struct led_classdev backlight_led = {
 	.brightness_set	= msm_fb_set_bl_brightness,
 };
 #endif
-
+#endif
 static struct msm_fb_platform_data *msm_fb_pdata;
 
 int msm_fb_detect_client(const char *name)
@@ -326,6 +327,7 @@ static int msm_fb_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
+#if 0
 #ifdef CONFIG_FB_BACKLIGHT
 	msm_fb_config_backlight(mfd);
 #else
@@ -336,6 +338,7 @@ static int msm_fb_probe(struct platform_device *pdev)
 		else
 			lcd_backlight_registered = 1;
 	}
+#endif
 #endif
 
 	pm_runtime_enable(&pdev->dev);
@@ -384,6 +387,7 @@ static int msm_fb_remove(struct platform_device *pdev)
 	/* remove /dev/fb* */
 	unregister_framebuffer(mfd->fbi);
 
+#if 0
 #ifdef CONFIG_FB_BACKLIGHT
 	/* remove /sys/class/backlight */
 	backlight_device_unregister(mfd->fbi->bl_dev);
@@ -392,6 +396,7 @@ static int msm_fb_remove(struct platform_device *pdev)
 		lcd_backlight_registered = 0;
 		led_classdev_unregister(&backlight_led);
 	}
+#endif
 #endif
 
 #ifdef MSM_FB_ENABLE_DBGFS
@@ -585,10 +590,7 @@ static void msmfb_early_suspend(struct early_suspend *h)
 {
 	struct msm_fb_data_type *mfd = container_of(h, struct msm_fb_data_type,
 						    early_suspend);
-	struct fb_info *fbi = mfd->fbi;
 
-	/* set the last frame on suspend as black frame */
-	memset(fbi->screen_base, 0x0, fbi->fix.smem_len);
 	msm_fb_suspend_sub(mfd);
 }
 
@@ -663,6 +665,8 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 	case FB_BLANK_UNBLANK:
 		if (!mfd->panel_power_on) {
 			msleep(16);
+			if (pdata->controller_on_panel_on)
+				pdata->power_on_panel_at_pan = 1;
 			ret = pdata->on(mfd->pdev);
 			if (ret == 0) {
 #ifdef CONFIG_FB_MSM_SEMC_LCD_BACKLIGHT_CONTROL
@@ -1052,7 +1056,8 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 		fix->line_length = panel_info->xres * bpp;
 
 	fix->smem_len = fix->line_length * panel_info->yres * mfd->fb_page;
-	fix->smem_len += 128*1024; /* Add 128KB, since QCT can't round numbers */
+
+	fix->smem_len += 128 * 1024; /* Add 128KB, since QCT can't round numbers */
 
 	mfd->var_xres = panel_info->xres;
 	mfd->var_yres = panel_info->yres;
@@ -1153,22 +1158,12 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 	     mfd->index, fbi->var.xres, fbi->var.yres, fbi->fix.smem_len);
 
 #ifdef CONFIG_FB_MSM_LOGO
-	ret = load_565rle_image(INIT_IMAGE_FILE);	/* Flip buffer */
-#if defined(CONFIG_FB_MSM_MDDI_TMD_NT35580)
-	if (!ret) {
-		struct fb_var_screeninfo var;
-		int ret;
-
-		var = fbi->var;
-		var.reserved[0] = 0x54445055;
-		var.reserved[1] = 0;
-		var.reserved[2] = (mfd->panel_info.yres << 16) | (mfd->panel_info.xres);
-		msm_fb_open(fbi, 0);
-		ret = msm_fb_pan_display(&var, fbi);
-		if(ret)
-			MSM_FB_INFO("msm_fb_pan_display ret=%d\n", ret);
+	if (mfd->index == 0) {
+		if (!load_565rle_image(INIT_IMAGE_FILE)) {
+			msm_fb_open(fbi, 0);
+			msm_fb_pan_display(var, fbi);
+		}	/* Flip buffer */
 	}
-#endif
 #endif
 	ret = 0;
 
@@ -1370,6 +1365,8 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 	struct mdp_dirty_region dirty;
 	struct mdp_dirty_region *dirtyPtr = NULL;
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+	struct msm_fb_panel_data *pdata =
+		(struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
 
 	if ((!mfd->op_enable) || (!mfd->panel_power_on))
 		return -EPERM;
@@ -1422,10 +1419,20 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 	}
 
 	down(&msm_fb_pan_sem);
-	mdp_set_dma_pan_info(info, dirtyPtr,
-			     (var->activate == FB_ACTIVATE_VBL));
+	if (pdata->power_on_panel_at_pan)
+		/* No vsync allowed at first pan since it will hang
+		   during dma transfer */
+		mdp_set_dma_pan_info(info, dirtyPtr, FALSE);
+	else
+		mdp_set_dma_pan_info(info, dirtyPtr,
+					(var->activate == FB_ACTIVATE_VBL));
 	mdp_dma_pan_update(info);
 	up(&msm_fb_pan_sem);
+
+	if (pdata->power_on_panel_at_pan) {
+		pdata->controller_on_panel_on(mfd->pdev);
+		pdata->power_on_panel_at_pan = 0;
+	}
 
 	++mfd->panel_info.frame_count;
 	return 0;
@@ -2834,6 +2841,9 @@ void msm_fb_add_device(struct platform_device *pdev)
 
 	/* link to the latest pdev */
 	mfd->pdev = this_dev;
+
+	/* link to the panel pdev */
+	mfd->panel_pdev = pdev;
 
 	mfd_list[mfd_list_index++] = mfd;
 	fbi_list[fbi_list_index++] = fbi;

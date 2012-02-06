@@ -230,6 +230,7 @@ struct msm_adspdec_database {
 };
 
 struct msm_panel_common_pdata {
+	uintptr_t hw_revision_addr;
 	int gpio;
 	int (*backlight_level)(int level, int max, int min);
 	int (*pmic_backlight)(int level);
@@ -237,12 +238,14 @@ struct msm_panel_common_pdata {
 	void (*panel_config_gpio)(int);
 	int *gpio_num;
 	int mdp_core_clk_rate;
-	int mdp_ver;
+	unsigned num_mdp_clk;
+	int *mdp_core_clk_table;
 };
 
 struct lcdc_platform_data {
 	int (*lcdc_gpio_config)(int on);
 	int (*lcdc_power_save)(int);
+	unsigned int (*lcdc_get_clk)(void);
 };
 
 struct tvenc_platform_data {
@@ -252,7 +255,7 @@ struct tvenc_platform_data {
 struct mddi_platform_data {
 	int (*mddi_power_save)(int on);
 	int (*mddi_sel_clk)(u32 *clk_rate);
-	int (*mddi_power_on)(int);
+	int (*mddi_client_power)(u32 client_id);
 };
 
 struct mipi_dsi_platform_data {
