@@ -53,6 +53,7 @@
 #include <mach/msm_tsif.h>
 #include <linux/max17040.h>
 #include <linux/akm8973.h>
+#include <mach/rpc_server_handset.h>
 
 #include "devices.h"
 #include "timer.h"
@@ -247,12 +248,16 @@ static struct platform_device smc91x_device = {
 	.resource       = smc91x_resources,
 };
 #endif /* CONFIG_SMC91X */
- 
+
+static struct msm_handset_platform_data hs_platform_data = {
+	.hs_name = "8k_handset",
+};
+
 static struct platform_device hs_device = {
 	.name   = "msm-handset",
 	.id     = -1,
 	.dev    = {
-		.platform_data = "8k_handset",
+		.platform_data = &hs_platform_data,
 	},
 };
 

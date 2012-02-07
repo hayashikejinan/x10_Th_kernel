@@ -132,6 +132,9 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default n
 
+config ARCH_HAS_CPU_IDLE_WAIT
+	bool
+
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -744,6 +747,15 @@ config CPU_FREQ_PXA
 endif
 
 source "drivers/cpuidle/Kconfig"
+
+config ARM_ERRATA_411920
+	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"
+	depends on CPU_V6 && !SMP
+	help
+	  Invalidation of the Instruction Cache operation can
+	  fail. This erratum is present in 1136 (before r1p4), 1156 and 1176.
+	  It does not affect the MPCore. This option enables the ARM Ltd.
+	  recommended workaround.
 
 endmenu
 

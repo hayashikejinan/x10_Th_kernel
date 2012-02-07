@@ -13,9 +13,9 @@ ifndef CONFIG_ARCH_MSM8X60
 	endif
 endif
 
-obj-$(CONFIG_ARCH_MSM_ARM11) += acpuclock.o timer.o gpio.o generic_gpio.o
-obj-$(CONFIG_ARCH_MSM_SCORPION) += timer.o gpio.o generic_gpio.o
-obj-$(CONFIG_ARCH_MSM_SCORPIONMP) += timer.o gpio-v2.o tlmm.o
+obj-$(CONFIG_ARCH_MSM_ARM11) += acpuclock.o timer.o
+obj-$(CONFIG_ARCH_MSM_SCORPION) += timer.o
+obj-$(CONFIG_ARCH_MSM_SCORPIONMP) += timer.o
 
 obj-$(CONFIG_MSM_VIC) += irq-vic.o
 
@@ -68,6 +68,7 @@ obj-$(CONFIG_MSM_RPC_PING) += ping_mdm_rpc_client.o
 obj-$(CONFIG_MSM_RPC_PROC_COMM_TEST) += proc_comm_test.o
 obj-$(CONFIG_MSM_RPC_PING) += ping_mdm_rpc_client.o ping_apps_server.o
 obj-$(CONFIG_MSM_RPC_OEM_RAPI) += oem_rapi_client.o
+obj-$(CONFIG_MSM_RPC_WATCHDOG) += rpc_dog_keepalive.o
 obj-$(CONFIG_MSM_RPCSERVER_WATCHDOG) += rpc_server_dog_keepalive.o
 obj-$(CONFIG_MSM_RPCSERVER_TIME_REMOTE) += rpc_server_time_remote.o
 obj-$(CONFIG_MSM_DALRPC) += dal.o
@@ -152,3 +153,10 @@ obj-$(CONFIG_PMIC_TIME) += pmic_time.o
 
 obj-$(CONFIG_SMMU)		+= smmu_driver.o smmu_driver_enum.o
 obj-$(CONFIG_SMMU_8X60)		+= board-msm8x60-smmu.o
+ifdef CONFIG_GPIOLIB
+obj-$(CONFIG_MSM7200A_TLMM)	+= msm7200a-gpio.o
+else
+obj-$(CONFIG_MSM7200A_TLMM)	+= gpio.o generic_gpio.o
+endif
+obj-$(CONFIG_MSM7200A_TLMM)	+= tlmm-msm7200a.o
+obj-$(CONFIG_MSM8660_TLMM)	+= tlmm-msm8660.o msm8660-gpio.o

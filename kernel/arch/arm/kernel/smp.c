@@ -32,6 +32,7 @@
 #include <asm/processor.h>
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
+#include <asm/cputype.h>
 
 /*
  * as from 2.5, kernels no longer have an init_tasks structure
@@ -183,7 +184,7 @@ int __cpuexit __cpu_disable(void)
 	read_lock(&tasklist_lock);
 	for_each_process(p) {
 		if (p->mm)
-			cpu_clear(cpu, p->mm->cpu_vm_mask);
+			cpumask_clear_cpu(cpu, mm_cpumask(p->mm));
 	}
 	read_unlock(&tasklist_lock);
 
@@ -251,7 +252,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	atomic_inc(&mm->mm_users);
 	atomic_inc(&mm->mm_count);
 	current->active_mm = mm;
-	cpu_set(cpu, mm->cpu_vm_mask);
+	cpumask_set_cpu(cpu, mm_cpumask(mm));
 	cpu_switch_mm(mm->pgd, mm);
 	enter_lazy_tlb(mm, current);
 	local_flush_tlb_all();
@@ -324,14 +325,14 @@ void __init smp_prepare_boot_cpu(void)
 	per_cpu(cpu_data, cpu).idle = current;
 }
 
-static void send_ipi_message(cpumask_t callmap, enum ipi_msg_type msg)
+static void send_ipi_message(const struct cpumask *mask, enum ipi_msg_type msg)
 {
 	unsigned long flags;
 	unsigned int cpu;
 
 	local_irq_save(flags);
 
-	for_each_cpu_mask(cpu, callmap) {
+	for_each_cpu(cpu, mask) {
 		struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
 
 		spin_lock(&ipi->lock);
@@ -342,19 +343,19 @@ static void send_ipi_message(cpumask_t callmap, enum ipi_msg_type msg)
 	/*
 	 * Call the platform specific cross-CPU call function.
 	 */
-	smp_cross_call(callmap);
+	smp_cross_call(mask);
 
 	local_irq_restore(flags);
 }
 
-void arch_send_call_function_ipi(cpumask_t mask)
+void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 {
 	send_ipi_message(mask, IPI_CALL_FUNC);
 }
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	send_ipi_message(cpumask_of_cpu(cpu), IPI_CALL_FUNC_SINGLE);
+	send_ipi_message(cpumask_of(cpu), IPI_CALL_FUNC_SINGLE);
 }
 
 void show_ipi_list(struct seq_file *p)
@@ -496,17 +497,10 @@ asmlinkage void __exception do_IPI(struct pt_regs *regs)
 
 void smp_send_reschedule(int cpu)
 {
-	send_ipi_message(cpumask_of_cpu(cpu), IPI_RESCHEDULE);
+	send_ipi_message(cpumask_of(cpu), IPI_RESCHEDULE);
 }
 
-void smp_send_timer(void)
-{
-	cpumask_t mask = cpu_online_map;
-	cpu_clear(smp_processor_id(), mask);
-	send_ipi_message(mask, IPI_TIMER);
-}
-
-void smp_timer_broadcast(cpumask_t mask)
+void smp_timer_broadcast(const struct cpumask *mask)
 {
 	send_ipi_message(mask, IPI_TIMER);
 }
@@ -515,7 +509,7 @@ void smp_send_stop(void)
 {
 	cpumask_t mask = cpu_online_map;
 	cpu_clear(smp_processor_id(), mask);
-	send_ipi_message(mask, IPI_CPU_STOP);
+	send_ipi_message(&mask, IPI_CPU_STOP);
 }
 
 /*
@@ -526,20 +520,17 @@ int setup_profiling_timer(unsigned int multiplier)
 	return -EINVAL;
 }
 
-static int
-on_each_cpu_mask(void (*func)(void *), void *info, int wait, cpumask_t mask)
+static void
+on_each_cpu_mask(void (*func)(void *), void *info, int wait,
+		const struct cpumask *mask)
 {
-	int ret = 0;
-
 	preempt_disable();
 
-	ret = smp_call_function_mask(mask, func, info, wait);
-	if (cpu_isset(smp_processor_id(), mask))
+	smp_call_function_many(mask, func, info, wait);
+	if (cpumask_test_cpu(smp_processor_id(), mask))
 		func(info);
 
 	preempt_enable();
-
-	return ret;
 }
 
 /**********************************************************************/
@@ -552,6 +543,12 @@ struct tlb_args {
 	unsigned long ta_start;
 	unsigned long ta_end;
 };
+
+/* all SMP configurations have the extended CPUID registers */
+static inline int tlb_ops_need_broadcast(void)
+{
+	return ((read_cpuid_ext(CPUID_EXT_MMFR3) >> 12) & 0xf) < 2;
+}
 
 static inline void ipi_flush_tlb_all(void *ignored)
 {
@@ -595,55 +592,61 @@ static inline void ipi_flush_tlb_kernel_range(void *arg)
 
 void flush_tlb_all(void)
 {
-	on_each_cpu(ipi_flush_tlb_all, NULL, 1);
+	if (tlb_ops_need_broadcast())
+		on_each_cpu(ipi_flush_tlb_all, NULL, 1);
+	else
+		local_flush_tlb_all();
 }
 
 void flush_tlb_mm(struct mm_struct *mm)
 {
-	cpumask_t mask = mm->cpu_vm_mask;
-
-	on_each_cpu_mask(ipi_flush_tlb_mm, mm, 1, mask);
+	if (tlb_ops_need_broadcast())
+		on_each_cpu_mask(ipi_flush_tlb_mm, mm, 1, mm_cpumask(mm));
+	else
+		local_flush_tlb_mm(mm);
 }
 
 void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
 {
-	cpumask_t mask = vma->vm_mm->cpu_vm_mask;
-	struct tlb_args ta;
-
-	ta.ta_vma = vma;
-	ta.ta_start = uaddr;
-
-	on_each_cpu_mask(ipi_flush_tlb_page, &ta, 1, mask);
+	if (tlb_ops_need_broadcast()) {
+		struct tlb_args ta;
+		ta.ta_vma = vma;
+		ta.ta_start = uaddr;
+		on_each_cpu_mask(ipi_flush_tlb_page, &ta, 1, mm_cpumask(vma->vm_mm));
+	} else
+		local_flush_tlb_page(vma, uaddr);
 }
 
 void flush_tlb_kernel_page(unsigned long kaddr)
 {
-	struct tlb_args ta;
-
-	ta.ta_start = kaddr;
-
-	on_each_cpu(ipi_flush_tlb_kernel_page, &ta, 1);
+	if (tlb_ops_need_broadcast()) {
+		struct tlb_args ta;
+		ta.ta_start = kaddr;
+		on_each_cpu(ipi_flush_tlb_kernel_page, &ta, 1);
+	} else
+		local_flush_tlb_kernel_page(kaddr);
 }
 
 void flush_tlb_range(struct vm_area_struct *vma,
                      unsigned long start, unsigned long end)
 {
-	cpumask_t mask = vma->vm_mm->cpu_vm_mask;
-	struct tlb_args ta;
-
-	ta.ta_vma = vma;
-	ta.ta_start = start;
-	ta.ta_end = end;
-
-	on_each_cpu_mask(ipi_flush_tlb_range, &ta, 1, mask);
+	if (tlb_ops_need_broadcast()) {
+		struct tlb_args ta;
+		ta.ta_vma = vma;
+		ta.ta_start = start;
+		ta.ta_end = end;
+		on_each_cpu_mask(ipi_flush_tlb_range, &ta, 1, mm_cpumask(vma->vm_mm));
+	} else
+		local_flush_tlb_range(vma, start, end);
 }
 
 void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
-	struct tlb_args ta;
-
-	ta.ta_start = start;
-	ta.ta_end = end;
-
-	on_each_cpu(ipi_flush_tlb_kernel_range, &ta, 1);
+	if (tlb_ops_need_broadcast()) {
+		struct tlb_args ta;
+		ta.ta_start = start;
+		ta.ta_end = end;
+		on_each_cpu(ipi_flush_tlb_kernel_range, &ta, 1);
+	} else
+		local_flush_tlb_kernel_range(start, end);
 }
