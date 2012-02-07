@@ -1078,8 +1078,11 @@ static int ar6000_pm_resume(struct platform_device *dev)
 static irqreturn_t
 ar6000_wow_irq(int irq, void *dev_id)
 {
-    gpio_clear_detect_status(wow_irq);
-    return IRQ_HANDLED;
+    /*gpio_clear_detect_status(wow_irq); */
+    printk("%s: wakeup !!!\n", __func__);
+#ifdef ANDROID_ENV
+    wake_lock_timeout(&ar6k_wow_wake_lock, 3*HZ);
+#endif
 }
 
 static int ar6000_pm_probe(struct platform_device *pdev)
