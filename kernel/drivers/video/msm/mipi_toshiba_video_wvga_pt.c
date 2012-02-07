@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2010, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,39 +17,40 @@
  */
 
 #include "msm_fb.h"
+#include "mipi_dsi.h"
+#include "mipi_toshiba.h"
 
-static int __init lcdc_external_init(void)
+static struct msm_panel_info pinfo;
+
+static int __init mipi_video_toshiba_wvga_pt_init(void)
 {
 	int ret;
-	struct msm_panel_info pinfo;
 
-	if (msm_fb_detect_client("lcdc_external"))
-		return 0;
-
-	pinfo.xres = 1280;
-	pinfo.yres = 720;
-	pinfo.type = LCDC_PANEL;
+	pinfo.xres = 480;
+	pinfo.yres = 856;
+	pinfo.type = MIPI_VIDEO_PANEL;
 	pinfo.pdest = DISPLAY_1;
 	pinfo.wait_cycle = 0;
 	pinfo.bpp = 24;
-	pinfo.fb_num = 2;
-	pinfo.clk_rate = 74250000;
-
-	pinfo.lcdc.h_back_porch = 124;
-	pinfo.lcdc.h_front_porch = 110;
-	pinfo.lcdc.h_pulse_width = 136;
-	pinfo.lcdc.v_back_porch = 19;
-	pinfo.lcdc.v_front_porch = 5;
-	pinfo.lcdc.v_pulse_width = 6;
+	pinfo.lcdc.h_back_porch = 64;
+	pinfo.lcdc.h_front_porch = 64;
+	pinfo.lcdc.h_pulse_width = 16;
+	pinfo.lcdc.v_back_porch = 8;
+	pinfo.lcdc.v_front_porch = 4;
+	pinfo.lcdc.v_pulse_width = 1;
 	pinfo.lcdc.border_clr = 0;	/* blk */
 	pinfo.lcdc.underflow_clr = 0xff;	/* blue */
 	pinfo.lcdc.hsync_skew = 0;
+	pinfo.bl_max = 15;
+	pinfo.bl_min = 1;
+	pinfo.fb_num = 2;
 
-	ret = lcdc_device_register(&pinfo);
+	ret = mipi_toshiba_device_register(&pinfo, MIPI_DSI_PRIM,
+						MIPI_DSI_PANEL_WVGA_PT);
 	if (ret)
 		printk(KERN_ERR "%s: failed to register device!\n", __func__);
 
 	return ret;
 }
 
-module_init(lcdc_external_init);
+module_init(mipi_video_toshiba_wvga_pt_init);

@@ -22,7 +22,12 @@ endif
 ifeq ($(CONFIG_FB_MSM_OVERLAY),y)
 obj-y += mdp4_overlay.o
 obj-y += mdp4_overlay_lcdc.o
+ifeq ($(CONFIG_FB_MSM_MIPI_DSI),y)
+obj-y += mdp4_overlay_dsi_video.o
+obj-y += mdp4_overlay_dsi_cmd.o
+else
 obj-y += mdp4_overlay_mddi.o
+endif
 else
 obj-y += mdp_dma_lcdc.o
 endif
@@ -52,8 +57,15 @@ obj-$(CONFIG_FB_MSM_MDDI) += msm_mddi.o
 msm_mddi_ext-objs := mddihost_e.o mddi_ext.o
 obj-$(CONFIG_FB_MSM_EXTMDDI) += msm_mddi_ext.o
 
+# MIPI
+msm_mipi-objs := mipi_dsi.o mipi_dsi_host.o mipi_toshiba.o
+obj-$(CONFIG_FB_MSM_MIPI_DSI) += msm_mipi.o
+
 # TVEnc
 obj-$(CONFIG_FB_MSM_TVOUT) += tvenc.o
+ifeq ($(CONFIG_FB_MSM_OVERLAY),y)
+obj-$(CONFIG_FB_MSM_TVOUT) += mdp4_overlay_atv.o
+endif
 
 # MSM FB Panel
 obj-y += msm_fb_panel.o
@@ -82,6 +94,8 @@ obj-$(CONFIG_FB_MSM_MDDI_HITACHI_QVGA_LCD) += mddi_hitachi_qvga.o
 obj-$(CONFIG_FB_MSM_MDDI_TOSHIBA_HVGA_LCD) += mddi_toshiba_hvga.o
 obj-$(CONFIG_FB_MSM_MDDI_HITACHI_HVGA_LCD) += mddi_hitachi_hvga.o
 endif
+
+obj-$(CONFIG_FB_MSM_MIPI_TOSHIBA_VIDEO_WVGA_PT) += mipi_toshiba_video_wvga_pt.o
 
 obj-$(CONFIG_FB_MSM_LCDC_PANEL) += lcdc_panel.o
 obj-$(CONFIG_FB_MSM_LCDC_PRISM_WVGA) += lcdc_prism.o
