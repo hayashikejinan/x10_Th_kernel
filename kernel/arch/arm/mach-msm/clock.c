@@ -67,18 +67,23 @@ EXPORT_SYMBOL(clk_put);
 
 int clk_enable(struct clk *clk)
 {
+	int ret = 0;
 	unsigned long flags;
+
 	spin_lock_irqsave(&clocks_lock, flags);
-	clk->count++;
-	if (clk->count == 1) {
-		clk->ops->enable(clk->id);
+	if (clk->count == 0) {
+		ret = clk->ops->enable(clk->id);
+		if (ret)
+			goto out;
 		BUG_ON(clk->id >= MAX_NR_CLKS);
 		spin_lock(&clock_map_lock);
 		clock_map_enabled[BIT_WORD(clk->id)] |= BIT_MASK(clk->id);
 		spin_unlock(&clock_map_lock);
 	}
+	clk->count++;
+out:
 	spin_unlock_irqrestore(&clocks_lock, flags);
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(clk_enable);
 
@@ -217,10 +222,7 @@ static int axi_freq_notifier_handler(struct notifier_block *block,
 	/* On 7x30, ebi1_clk votes are dropped during power collapse, but
 	 * pbus_clk votes are not. Use pbus_clk to implicitly request ebi1
 	 * and AXI rates. */
-	if (cpu_is_msm7x30() || cpu_is_msm8x55())
-		return clk_set_min_rate(pbus_clk, min_freq/2);
-	else
-		return ebi1_clk_set_min_rate(CLKVOTE_PMQOS, min_freq);
+	return clk_set_min_rate(pbus_clk, min_freq/2);
 }
 
 /*
@@ -294,10 +296,8 @@ void __init msm_clock_init(struct clk *clock_tbl, unsigned num_clocks)
 
 	ebi1_clk = clk_get(NULL, "ebi1_clk");
 	BUG_ON(IS_ERR(ebi1_clk));
-	if (cpu_is_msm7x30() || cpu_is_msm8x55()) {
-		pbus_clk = clk_get(NULL, "pbus_clk");
-		BUG_ON(IS_ERR(pbus_clk));
-	}
+	pbus_clk = clk_get(NULL, "pbus_clk");
+	BUG_ON(IS_ERR(pbus_clk));
 
 	axi_freq_notifier_block.notifier_call = axi_freq_notifier_handler;
 	pm_qos_add_notifier(PM_QOS_SYSTEM_BUS_FREQ, &axi_freq_notifier_block);

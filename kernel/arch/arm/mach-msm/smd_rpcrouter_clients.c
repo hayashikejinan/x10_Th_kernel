@@ -100,12 +100,18 @@ static int rpc_clients_thread(void *data)
 
 	client = data;
 	for (;;) {
-		rc = msm_rpc_read(client->ept, &buffer, -1, HZ);
+		buffer = NULL;
+		rc = msm_rpc_read(client->ept, &buffer, -1, -1);
 
-		if (client->exit_flag)
+		if (client->exit_flag) {
+			kfree(buffer);
 			break;
-		if (rc < ((int)(sizeof(uint32_t) * 2)))
+		}
+
+		if (rc < ((int)(sizeof(uint32_t) * 2))) {
+			kfree(buffer);
 			continue;
+		}
 
 		type = be32_to_cpu(*((uint32_t *)buffer + 1));
 		if (type == 1) {
@@ -285,6 +291,7 @@ struct msm_rpc_client *msm_rpc_register_client(
 	if (IS_ERR(client->cb_thread)) {
 		rc = PTR_ERR(client->cb_thread);
 		client->exit_flag = 1;
+		msm_rpc_read_wakeup(client->ept);
 		wait_for_completion(&client->complete);
 		msm_rpc_close(client->ept);
 		msm_rpc_destroy_client(client);
@@ -364,6 +371,7 @@ struct msm_rpc_client *msm_rpc_register_client2(
 	if (IS_ERR(client->cb_thread)) {
 		rc = PTR_ERR(client->cb_thread);
 		client->exit_flag = 1;
+		msm_rpc_read_wakeup(client->ept);
 		wait_for_completion(&client->complete);
 		msm_rpc_close(client->ept);
 		msm_rpc_destroy_client(client);
@@ -394,6 +402,7 @@ int msm_rpc_unregister_client(struct msm_rpc_client *client)
 		wait_for_completion(&client->cb_complete);
 	}
 
+	msm_rpc_read_wakeup(client->ept);
 	wait_for_completion(&client->complete);
 
 	msm_rpc_close(client->ept);

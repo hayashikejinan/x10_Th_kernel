@@ -185,4 +185,4 @@ static int __init rpcrouter_smd_init(void)
 
 module_init(rpcrouter_smd_init);
 MODULE_DESCRIPTION("RPC Router SMD XPRT");
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL v2");
