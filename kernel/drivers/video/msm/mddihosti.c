@@ -1,58 +1,18 @@
-/* Copyright (c) 2008-2009, Code Aurora Forum. All rights reserved.
- * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
+/* Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Code Aurora Forum nor
- *       the names of its contributors may be used to endorse or promote
- *       products derived from this software without specific prior written
- *       permission.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
  *
- * Alternatively, provided that this notice is retained in full, this software
- * may be relicensed by the recipient under the terms of the GNU General Public
- * License version 2 ("GPL") and only version 2, in which case the provisions of
- * the GPL apply INSTEAD OF those given above.  If the recipient relicenses the
- * software under the GPL, then the identification text in the MODULE_LICENSE
- * macro must be changed to reflect "GPLv2" instead of "Dual BSD/GPL".  Once a
- * recipient changes the license terms to the GPL, subsequent recipients shall
- * not relicense under alternate licensing terms, including the BSD or dual
- * BSD/GPL terms.  In addition, the following license statement immediately
- * below and between the words START and END shall also then apply when this
- * software is relicensed under the GPL:
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * START
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 and only version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * END
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
  *
  */
 
@@ -92,6 +52,7 @@ boolean mddi_debug_log_statistics = FALSE;
 static boolean mddi_host_mdp_active_flag = TRUE;
 static uint32 mddi_log_stats_counter;
 uint32 mddi_log_stats_frequency = 4000;
+int32 mddi_client_type;
 
 #define MDDI_DEFAULT_REV_PKT_SIZE            0x20
 
@@ -403,6 +364,13 @@ static void mddi_report_state_change(uint32 int_reg)
 		pmhctl->link_state = MDDI_LINK_HIBERNATING;
 		pmhctl->log_parms.link_hibernate_cnt++;
 		MDDI_MSG_DEBUG("!!! MDDI Hibernating !!!\n");
+
+		if (mddi_client_type == 2) {
+			mddi_host_reg_out(PAD_CTL, 0x402a850f);
+			mddi_host_reg_out(PAD_CAL, 0x10220020);
+			mddi_host_reg_out(TA1_LEN, 0x0010);
+			mddi_host_reg_out(TA2_LEN, 0x0040);
+		}
 		/* now interrupt on link_active */
 #ifdef FEATURE_MDDI_DISABLE_REVERSE
 		mddi_host_reg_outm(INTEN,
@@ -471,11 +439,9 @@ static void mddi_report_state_change(uint32 int_reg)
 
 void mddi_host_timer_service(unsigned long data)
 {
-#if !defined(FEATURE_MDDI_DISABLE_REVERSE) &&\
-		!defined(CONFIG_FB_MSM_MDDI_TMD_NT35580)
+#ifndef FEATURE_MDDI_DISABLE_REVERSE
 	unsigned long flags;
 #endif
-
 	mddi_host_type host_idx;
 	mddi_host_cntl_type *pmhctl;
 
@@ -491,8 +457,7 @@ void mddi_host_timer_service(unsigned long data)
 	     host_idx++) {
 		pmhctl = &(mhctl[host_idx]);
 		mddi_log_stats_counter += (uint32) time_ms;
-#if !defined(FEATURE_MDDI_DISABLE_REVERSE) &&\
-		!defined(CONFIG_FB_MSM_MDDI_TMD_NT35580)
+#ifndef FEATURE_MDDI_DISABLE_REVERSE
 		pmhctl->rtd_counter += (uint32) time_ms;
 		pmhctl->client_status_cnt += (uint32) time_ms;
 
@@ -546,7 +511,7 @@ void mddi_host_timer_service(unsigned long data)
 				}
 			}
 		}
-#endif
+#endif /* #ifndef FEATURE_MDDI_DISABLE_REVERSE */
 	}
 
 	/* Check if logging is turned on */
@@ -921,10 +886,6 @@ static void mddi_process_rev_packets(void)
 	if (rev_packet_count >= 1) {
 		mddi_invalidate_cache_lines((uint32 *) pmhctl->rev_ptr_start,
 					    MDDI_REV_BUFFER_SIZE);
-	} else {
-		MDDI_MSG_ERR("Reverse pkt sent, no data rxd\n");
-		if (mddi_reg_read_value_ptr)
-			*mddi_reg_read_value_ptr = -EBUSY;
 	}
 	/* order the reads */
 	dma_coherent_post_ops();
@@ -1044,6 +1005,10 @@ static void mddi_process_rev_packets(void)
 			}
 			break;
 
+		case INVALID_PKT_TYPE:	/* 0xFFFF */
+			MDDI_MSG_ERR("!!!INVALID_PKT_TYPE rcvd\n");
+			break;
+
 		default:	/* any other packet */
 			{
 				uint16 hdlr;
@@ -1051,10 +1016,12 @@ static void mddi_process_rev_packets(void)
 				for (hdlr = 0; hdlr < MAX_MDDI_REV_HANDLERS;
 				     hdlr++) {
 					if (mddi_rev_pkt_handler[hdlr].
+							handler == NULL)
+						continue;
+					if (mddi_rev_pkt_handler[hdlr].
 					    pkt_type ==
 					    rev_pkt_ptr->packet_type) {
-						(*
-						 (mddi_rev_pkt_handler[hdlr].
+						(*(mddi_rev_pkt_handler[hdlr].
 						  handler)) (rev_pkt_ptr);
 					/* pmhctl->rev_state = MDDI_REV_IDLE; */
 						break;
@@ -1094,8 +1061,6 @@ static void mddi_process_rev_packets(void)
 				if (mddi_enable_reg_read_retry_once)
 					mddi_reg_read_retry =
 					    mddi_reg_read_retry_max;
-				else
-					mddi_reg_read_retry++;
 				pmhctl->rev_state = MDDI_REV_REG_READ_SENT;
 				pmhctl->stats.reg_read_failure++;
 			} else {
@@ -1518,25 +1483,15 @@ static void mddi_host_initialize_registers(mddi_host_type host_idx)
 		mddi_host_reg_out(PAD_CTL, 0x08000);
 		udelay(5);
 	}
-#if defined(T_MSM7200)
+#ifdef T_MSM7200
 	/* Recommendation from PAD hw team */
 	mddi_host_reg_out(PAD_CTL, 0xa850a);
-	/* Recommendation from PAD hw team */
-#elif defined(CONFIG_FB_MSM_MDDI_2)
-	mddi_host_reg_out(PAD_CTL, 0x402a850f);
 #else
+	/* Recommendation from PAD hw team */
 	mddi_host_reg_out(PAD_CTL, 0xa850f);
 #endif
 
-#if defined(CONFIG_FB_MSM_MDDI_TMD_NT35580)
-	pad_reg_val = 0x00cc0020;
-#else
 	pad_reg_val = 0x00220020;
-#endif
-
-#ifdef CONFIG_FB_MSM_MDDI_2
-	pad_reg_val |= 0x10000000;
-#endif
 
 #if defined(CONFIG_FB_MSM_MDP31) || defined(CONFIG_FB_MSM_MDP40)
 	mddi_host_reg_out(PAD_IO_CTL, 0x00320000);
@@ -1805,9 +1760,7 @@ void mddi_host_init(mddi_host_type host_idx)
 	pmhctl = &(mhctl[host_idx]);
 }
 
-/*
- * XXX: #ifdef CONFIG_FB_MSM_MDDI_AUTO_DETECT
- */
+#ifdef CONFIG_FB_MSM_MDDI_AUTO_DETECT
 static uint32 mddi_client_id;
 
 uint32 mddi_get_client_id(void)
@@ -1913,9 +1866,7 @@ uint32 mddi_get_client_id(void)
 
 	return mddi_client_id;
 }
-/*
- * XXX: #endif
- */
+#endif
 
 void mddi_host_powerdown(mddi_host_type host_idx)
 {
@@ -1977,7 +1928,6 @@ uint16 mddi_get_next_free_llist_item(mddi_host_type host_idx, boolean wait)
 		} else {
 			forced_wait = TRUE;
 			INIT_COMPLETION(pmhctl->mddi_llist_avail_comp);
-			pmhctl->mddi_waiting_for_llist_avail = TRUE;
 		}
 	}
 	spin_unlock_irqrestore(&mddi_host_spin_lock, flags);
@@ -2303,9 +2253,4 @@ void mddi_mhctl_remove(mddi_host_type host_idx)
 	dma_free_coherent(NULL, MDDI_MAX_REV_DATA_SIZE,
 			  (void *)pmhctl->rev_data_buf,
 			  pmhctl->rev_data_dma_addr);
-}
-
-uint32 mddi_host_get_error_count(void)
-{
-	return mhctl[MDDI_HOST_PRIM].int_type.error_count;
 }
