@@ -356,4 +356,4 @@ module_exit(oem_rapi_client_mod_exit);
 #endif
 
 MODULE_DESCRIPTION("OEM RAPI CLIENT Driver");
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL v2");

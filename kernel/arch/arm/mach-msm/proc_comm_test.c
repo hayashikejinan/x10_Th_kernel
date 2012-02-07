@@ -127,4 +127,4 @@ module_init(proc_comm_test_mod_init);
 module_exit(proc_comm_test_mod_exit);
 
 MODULE_DESCRIPTION("PROC COMM TEST Driver");
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL v2");

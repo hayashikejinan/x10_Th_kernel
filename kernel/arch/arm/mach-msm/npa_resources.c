@@ -17,12 +17,11 @@
  */
 
 #include <linux/init.h>
-#include <linux/npa.h>
-#include <linux/npa_remote.h>
-#include <linux/npa_pm_qos.h>
 #include <linux/pm_qos_params.h>
+#include "msm_pm_qos.h"
+#include "npa_remote.h"
 
-#ifdef CONFIG_NPA_REMOTE
+#ifdef CONFIG_MSM_NPA_REMOTE
 
 DECLARE_RESOURCE_REMOTE_AGGREGATION(
 	npa_memory_node,
@@ -34,9 +33,9 @@ DECLARE_RESOURCE_REMOTE_AGGREGATION(
 #define SYSTEM_BUS_NPA_RESOURCE_NAME "/bus/arbiter"
 static struct pm_qos_plugin system_bus_plugin = {
 	.data = SYSTEM_BUS_NPA_RESOURCE_NAME,
-	.add_fn = npa_pm_qos_add,
-	.update_fn = npa_pm_qos_update,
-	.remove_fn = npa_pm_qos_remove
+	.add_fn = msm_pm_qos_add,
+	.update_fn = msm_pm_qos_update,
+	.remove_fn = msm_pm_qos_remove
 };
 
 DECLARE_RESOURCE_REMOTE_AGGREGATION(
@@ -45,12 +44,12 @@ DECLARE_RESOURCE_REMOTE_AGGREGATION(
 	SYSTEM_BUS_NPA_RESOURCE_NAME,
 	"flow", UINT_MAX);
 
-static int __init npa_pm_qos_plugin_init(void)
+static int __init msm_pm_qos_plugin_init(void)
 {
 	return pm_qos_register_plugin(PM_QOS_SYSTEM_BUS_FREQ,
 					&system_bus_plugin);
 }
-core_initcall(npa_pm_qos_plugin_init);
+core_initcall(msm_pm_qos_plugin_init);
 #endif /* CONFIG_MSM_NPA_SYSTEM_BUS */
 
 static int __init npa_resource_init(void)
@@ -64,4 +63,4 @@ static int __init npa_resource_init(void)
 }
 arch_initcall(npa_resource_init);
 
-#endif /* CONFIG_NPA_REMOTE */
+#endif /* CONFIG_MSM_NPA_REMOTE */

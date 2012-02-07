@@ -53,6 +53,7 @@ config ARCH_MSM8X60
 	select MSM_DIRECT_SCLK_ACCESS
 	select MSM_RPM
 	select MSM_XO
+	select MSM_WATCHDOG
 
 endchoice
 
@@ -697,7 +698,7 @@ config MSM_SDIO_AL_TEST
 	  SDIO-AL functionality and performance test.
 
 config MSM_N_WAY_SMD
-	depends on (MSM_SMD && (ARCH_MSM_SCORPION || ARCH_MSM_SCORPIONMP || ARCH_MSM7X27))
+	depends on (MSM_SMD && (ARCH_MSM_SCORPION || ARCH_MSM_SCORPIONMP || ARCH_MSM7X27 || ARCH_MSM7X25))
 	default y
 	bool "MSM N-WAY SMD support"
 	help
@@ -705,7 +706,7 @@ config MSM_N_WAY_SMD
 	  normal APPS-MODEM SMD communication.
 
 config MSM_N_WAY_SMSM
-	depends on (MSM_SMD && (ARCH_MSM_SCORPION || ARCH_MSM_SCORPIONMP || ARCH_MSM7X27))
+	depends on (MSM_SMD && (ARCH_MSM_SCORPION || ARCH_MSM_SCORPIONMP || ARCH_MSM7X27 || ARCH_MSM7X25))
 	default y
 	bool "MSM N-WAY SMSM support"
 	help
@@ -1090,58 +1091,56 @@ choice
 		bool "Reset the entire chip"
 endchoice
 
-config SEMC_SEPORT_PLATFORM
-	bool "SEMC Seport platform driver"
-	depends on (ARCH_SQD || ARCH_MSM) && SEMC_SEPORT
-	default n
+config MSM_NPA
+	bool "Node Power Architecture(NPA) support"
+	default y if ARCH_MSM7X30
 	help
-	  hardware dependant driver for SEMC Seport systemconnector.
-	  Requires SEMC systemconnector to be enabled!
+	  Enable support for Node Power Architecture for aggressive
+	  resource power management. NPA provides an interface for resources
+	  to export their parameters and clients to request a value. The
+	  resources have additional facility to aggreate requests, calculate
+	  the resultant value, apply the value and notify the clients of
+	  change in state.
 
-config SEMC_POWER
-	tristate "Semc power"
-	depends on POWER_SUPPLY
-	default n
-	help
-	  Enable semc battery power manager.
-
-config DELTA_PROXIMITY_SENSOR
-	tristate "Proximity sensor driver for delta platform"
-	default y
-	select SEMCCLASS
-	depends on (ARCH_SQD || ARCH_MSM)
-	help
-	  This option enables support delta platform
-	  proximity sensor.
-
-config TI1271
-	bool "Use connectivity driver and config for TI1271"
-	default n
-	help
-	  This option enables support for TI1271.
-
-config MSM_MISC_MODEM_API
-	bool "MSM misc modem  API"
-	depends on (ARCH_SQD || ARCH_MSM)
+config MSM_NPA_LOG
+	bool "Node Power Architecture(NPA) logging support"
+	depends on MSM_NPA
 	default y
 	help
-	  This option enables misc modem API driver
+	  Enable logging support for NPA.
 
-config ES209RA_HEADSET
-	bool "ES209RA headset detection driver"
-	default y if MACH_ES209RA
+config MSM_NPA_DEBUG
+	bool "Node Power Architecture(NPA) debug support"
+	depends on MSM_NPA
+	default n
 	help
-	  Provides support for detecting 3.5mm audio jack, such as wired
-	  headset, on the es209ra platform.
+	  Exports functions that can debug or reset NPA internal
+	  data structures.
 
-config NPA_REMOTE_ONCRPC
+config MSM_NPA_REMOTE
+	bool "Node Power Architecture(NPA) remoting"
+	depends on MSM_NPA
+	default n
+	help
+	  Enables Linux NPA clients to talk to NPA nodes across
+	  processor boundary.
+
+config MSM_NPA_REMOTE_ONCRPC
 	bool "Enables NPA remoting through ONCRPC protocol."
-	depends on NPA && MSM_ONCRPCROUTER
-	select NPA_REMOTE
+	depends on MSM_NPA && MSM_ONCRPCROUTER
+	select MSM_NPA_REMOTE
 	default n
 	help
 	  Enables Linux NPA clients to talk to NPA nodes in the modem
 	  using ONCRPC communication protocol.
+
+config MSM_NPA_PROC_COMM
+	bool "Enables NPA remoting through PROC-COMM to issue requests"
+	depends on MSM_NPA_REMOTE_ONCRPC && MSM_PROC_COMM
+	default n
+	help
+	  Enables the use of PROC-COMM to make requests instead of ONCRPC.
+	  ONCRPC is however still required for NPA setup.
 
 config MSM_NPA_SYSTEM_BUS
 	bool "NPA-managed System Bus (AXI) rates through PM_QOS."
@@ -1150,66 +1149,6 @@ config MSM_NPA_SYSTEM_BUS
 	help
 	  PM_QOS System Bus rate requests are interpreted as 'Flow IDs' and
 	  are routed through the NPA framework.
-
-config MSM_NPA_PROC_COMM
-	bool "Enables NPA remoting through PROC-COMM to issue requests"
-	depends on MSM_NPA_REMOTE_ONCRPC && MSM_PROC_COMM
-	default n
-	help
-	 Enables the use of PROC-COMM to make requests instead of ONCRPC.
-	 ONCRPC is however still required for NPA setup.
-
-config ES209RA_INPUT_GPIO_MATRIX
-	bool "ES209RA GPIO key matrix driver"
-	depends on MACH_ES209RA && INPUT_GPIO
-	default y
-	help
-	  Enable GPIO key matrix driver for es209ra.
-	  This driver is derived from common GPIO key matrix driver(gpio_matrix.c)
-	  Difference from the common driver is as follows:
-	   1. Support discard timer for long key press.
-	   2. Pull-up the KR line when the other KR line is being driven.
-
-config AUDIO_QDSP_AMP_GPIO_CTRL
-	bool "Enable audio qdsp amp gpio ctrl"
-	default n
-	help
-	  Enable GPIO control of audio qdsp amplifier.
-
-config EXP_DABORT_MSG
-	bool "Expand Data Abort Message"
-	default n
-	depends on ARCH_MSM_SCORPION
-	help
-	  This enables the expanded Oops message when data abort occurred.
-
-config SEMC_LOW_BATT_SHUTDOWN
-	bool "Low-Battery Shutdown support"
-	depends on (ARCH_MSM && MSM_ONCRPCROUTER)
-	default n
-	help
-	  Say Y to enable support for the low-battery detection.
-	  This driver communicate with AMSS VBatt driver.
-	  When battery voltage is less than the registerd threashold
-	  during power collapse, AMSS wakes ACPU up and sends callback
-	  request to this function.
-
-config SEMC_RPC_SERVER_HANDSET
-	bool "Enable SEMC handset rpc dispatcher"
-	depends on (ARCH_SQD || ARCH_MSM) && MSM_ONCRPCROUTER
-	default n
-	help
-	  This enables SEMC version of rpc_server_handset message
-	  dispatcher.
-	  This cannot cooperate with MSM_RPCSERVER_HANDSET. If this
-	  is set, an error will be generated.
-
-config PMIC_TIME
-	bool "Export pmic time as sysfs entry"
-	depends on (ARCH_MSM)
-	default n
-	help
-	  This exports pmic time in a sysfs entry.
 
 config MSM_PIL
 	bool "Peripheral image loading"
@@ -1266,4 +1205,110 @@ config MSM_V2_TLMM
 config MSM_BUS_SCALING
 	bool "Bus scaling driver"
 	default n
+
+config MSM_WATCHDOG
+	bool "MSM Watchdog Support"
+	depends on ARCH_MSM8X60
+	help
+		This enables the watchdog as is present on 8x60. Currently we use
+		core 0's watchdog, and reset the entire SoC if it times out. It does
+		not run during the bootup process, so it will not catch any early
+		lockups.
+
+config PMIC_TIME
+	bool "Export pmic time as sysfs entry"
+	depends on (ARCH_MSM)
+	default n
+	help
+	  This exports pmic time in a sysfs entry.
+
+config SEMC_RPC_SERVER_HANDSET
+	bool "Enable SEMC handset rpc dispatcher"
+	depends on (ARCH_SQD || ARCH_MSM) && MSM_ONCRPCROUTER
+	default n
+	help
+	  This enables SEMC version of rpc_server_handset message
+	  dispatcher.
+	  This cannot cooperate with MSM_RPCSERVER_HANDSET. If this
+	  is set, an error will be generated.
+
+config SEMC_SEPORT_PLATFORM
+	bool "SEMC Seport platform driver"
+	depends on (ARCH_SQD || ARCH_MSM) && SEMC_SEPORT
+	default n
+	help
+	  hardware dependant driver for SEMC Seport systemconnector.
+	  Requires SEMC systemconnector to be enabled!
+
+config SEMC_POWER
+	tristate "Semc power"
+	depends on POWER_SUPPLY
+	default n
+	help
+	  Enable semc battery power manager.
+
+config DELTA_PROXIMITY_SENSOR
+	tristate "Proximity sensor driver for delta platform"
+	default y
+	select SEMCCLASS
+	depends on (ARCH_SQD || ARCH_MSM)
+	help
+	  This option enables support delta platform
+	  proximity sensor.
+
+config TI1271
+	bool "Use connectivity driver and config for TI1271"
+	default n
+	help
+	  This option enables support for TI1271.
+
+config MSM_MISC_MODEM_API
+	bool "MSM misc modem  API"
+	depends on (ARCH_SQD || ARCH_MSM)
+	default y
+	help
+	  This option enables misc modem API driver
+
+config ES209RA_HEADSET
+	bool "ES209RA headset detection driver"
+	default y if MACH_ES209RA
+	help
+	  Provides support for detecting 3.5mm audio jack, such as wired
+	  headset, on the es209ra platform.
+
+config ES209RA_INPUT_GPIO_MATRIX
+	bool "ES209RA GPIO key matrix driver"
+	depends on MACH_ES209RA && INPUT_GPIO
+	default y
+	help
+	  Enable GPIO key matrix driver for es209ra.
+	  This driver is derived from common GPIO key matrix driver(gpio_matrix.c)
+	  Difference from the common driver is as follows:
+	   1. Support discard timer for long key press.
+	   2. Pull-up the KR line when the other KR line is being driven.
+
+config AUDIO_QDSP_AMP_GPIO_CTRL
+	bool "Enable audio qdsp amp gpio ctrl"
+	default n
+	help
+	  Enable GPIO control of audio qdsp amplifier.
+
+config EXP_DABORT_MSG
+	bool "Expand Data Abort Message"
+	default n
+	depends on ARCH_MSM_SCORPION
+	help
+	  This enables the expanded Oops message when data abort occurred.
+
+config SEMC_LOW_BATT_SHUTDOWN
+	bool "Low-Battery Shutdown support"
+	depends on (ARCH_MSM && MSM_ONCRPCROUTER)
+	default n
+	help
+	  Say Y to enable support for the low-battery detection.
+	  This driver communicate with AMSS VBatt driver.
+	  When battery voltage is less than the registerd threashold
+	  during power collapse, AMSS wakes ACPU up and sends callback
+	  request to this function.
+
 endif

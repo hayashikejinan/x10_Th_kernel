@@ -667,4 +667,4 @@ module_init(ping_test_init);
 module_exit(ping_test_exit);
 
 MODULE_DESCRIPTION("PING TEST Driver");
-MODULE_LICENSE("Dual BSD/GPL");
+MODULE_LICENSE("GPL v2");

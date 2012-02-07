@@ -50,6 +50,7 @@
 #define PSR_F_BIT	0x00000040
 #define PSR_I_BIT	0x00000080
 #define PSR_A_BIT	0x00000100
+#define PSR_E_BIT	0x00000200
 #define PSR_J_BIT	0x01000000
 #define PSR_Q_BIT	0x08000000
 #define PSR_V_BIT	0x10000000
@@ -64,6 +65,15 @@
 #define PSR_s		0x00ff0000	/* Status		*/
 #define PSR_x		0x0000ff00	/* Extension		*/
 #define PSR_c		0x000000ff	/* Control		*/
+
+/*
+ * Default endianness state
+ */
+#ifdef CONFIG_CPU_ENDIAN_BE8
+#define PSR_ENDSTATE	PSR_E_BIT
+#else
+#define PSR_ENDSTATE	0
+#endif
 
 #ifndef __ASSEMBLY__
 

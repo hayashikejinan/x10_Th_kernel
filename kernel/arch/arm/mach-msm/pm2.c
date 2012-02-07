@@ -34,6 +34,10 @@
 #endif
 #include <mach/msm_iomap.h>
 #include <mach/system.h>
+#ifdef CONFIG_CPU_V7
+#include <asm/pgtable.h>
+#include <asm/pgalloc.h>
+#endif
 #ifdef CONFIG_CACHE_L2X0
 #include <asm/hardware/cache-l2x0.h>
 #endif
@@ -689,7 +693,7 @@ static struct msm_pm_time_stats {
 };
 
 static uint32_t msm_pm_sleep_limit = SLEEP_LIMIT_NONE;
-static DECLARE_BITMAP(msm_pm_clocks_no_tcxo_shutdown, NR_CLKS);
+static DECLARE_BITMAP(msm_pm_clocks_no_tcxo_shutdown, MAX_NR_CLKS);
 
 /*
  * Add the given time data to the statistics collection.
@@ -759,7 +763,7 @@ static int msm_pm_read_proc
 
 	if (!off) {
 		SNPRINTF(p, count, "Clocks against last TCXO shutdown:\n");
-		for_each_bit(i, msm_pm_clocks_no_tcxo_shutdown, NR_CLKS) {
+		for_each_bit(i, msm_pm_clocks_no_tcxo_shutdown, MAX_NR_CLKS) {
 			clk_name[0] = '\0';
 			msm_clock_get_name(i, clk_name, sizeof(clk_name));
 			SNPRINTF(p, count, "  %s (id=%d)\n", clk_name, i);
@@ -856,7 +860,7 @@ static int msm_pm_write_proc(struct file *file, const char __user *buffer,
 	}
 
 	msm_pm_sleep_limit = SLEEP_LIMIT_NONE;
-	bitmap_zero(msm_pm_clocks_no_tcxo_shutdown, NR_CLKS);
+	bitmap_zero(msm_pm_clocks_no_tcxo_shutdown, MAX_NR_CLKS);
 	local_irq_restore(flags);
 
 	return count;
@@ -1362,7 +1366,7 @@ void arch_idle(void)
 	int i;
 
 #ifdef CONFIG_MSM_IDLE_STATS
-	DECLARE_BITMAP(clk_ids, NR_CLKS);
+	DECLARE_BITMAP(clk_ids, MAX_NR_CLKS);
 	int64_t t1;
 	static int64_t t2;
 	int exit_stat;
@@ -1430,7 +1434,7 @@ void arch_idle(void)
 	}
 
 #ifdef CONFIG_MSM_IDLE_STATS
-	ret = msm_clock_require_tcxo(clk_ids, NR_CLKS);
+	ret = msm_clock_require_tcxo(clk_ids, MAX_NR_CLKS);
 #elif defined(CONFIG_CLOCK_BASED_SLEEP_LIMIT)
 	ret = msm_clock_require_tcxo(NULL, 0);
 #endif /* CONFIG_MSM_IDLE_STATS */
@@ -1477,7 +1481,7 @@ void arch_idle(void)
 			exit_stat = MSM_PM_STAT_IDLE_POWER_COLLAPSE;
 			msm_pm_sleep_limit = sleep_limit;
 			bitmap_copy(msm_pm_clocks_no_tcxo_shutdown, clk_ids,
-				NR_CLKS);
+				MAX_NR_CLKS);
 		}
 #endif /* CONFIG_MSM_IDLE_STATS */
 	} else if (allow[MSM_PM_SLEEP_MODE_APPS_SLEEP]) {
@@ -1557,12 +1561,12 @@ static int msm_pm_enter(suspend_state_t state)
 	int i;
 
 #ifdef CONFIG_MSM_IDLE_STATS
-	DECLARE_BITMAP(clk_ids, NR_CLKS);
+	DECLARE_BITMAP(clk_ids, MAX_NR_CLKS);
 	int64_t period = 0;
 	int64_t time = 0;
 
 	time = msm_timer_get_sclk_time(&period);
-	ret = msm_clock_require_tcxo(clk_ids, NR_CLKS);
+	ret = msm_clock_require_tcxo(clk_ids, MAX_NR_CLKS);
 #elif defined(CONFIG_CLOCK_BASED_SLEEP_LIMIT)
 	ret = msm_clock_require_tcxo(NULL, 0);
 #endif /* CONFIG_MSM_IDLE_STATS */
@@ -1647,7 +1651,7 @@ static int msm_pm_enter(suspend_state_t state)
 			id = MSM_PM_STAT_SUSPEND;
 			msm_pm_sleep_limit = sleep_limit;
 			bitmap_copy(msm_pm_clocks_no_tcxo_shutdown, clk_ids,
-				NR_CLKS);
+				MAX_NR_CLKS);
 		}
 
 		if (time != 0) {
@@ -1751,6 +1755,22 @@ static int __init msm_pm_init(void)
 	struct proc_dir_entry *d_entry;
 #endif
 	int ret;
+#ifdef CONFIG_CPU_V7
+	pgd_t *pc_pgd;
+	pmd_t *pmd;
+
+	/* Page table for cores to come back up safely. */
+	pc_pgd = pgd_alloc(&init_mm);
+	if (!pc_pgd)
+		return -ENOMEM;
+	pmd = pmd_offset(pc_pgd +
+			 pgd_index(virt_to_phys(msm_pm_collapse_exit)),
+			 virt_to_phys(msm_pm_collapse_exit));
+	*pmd = __pmd((virt_to_phys(msm_pm_collapse_exit) & PGDIR_MASK) |
+		     PMD_TYPE_SECT | PMD_SECT_AP_WRITE);
+	flush_pmd_entry(pmd);
+	msm_pm_pc_pgd = virt_to_phys(pc_pgd);
+#endif
 
 	pm_power_off = msm_pm_power_off;
 	arm_pm_restart = msm_pm_restart;
