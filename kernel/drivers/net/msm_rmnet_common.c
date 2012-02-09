@@ -48,8 +48,9 @@
 #define DEVICE_INACTIVE      0
 #define DEVICE_ACTIVE        1
 
-#define HEADROOM_FOR_SDIO   8
+#define HEADROOM_FOR_SDIO   8 /* for mux header */
 #define HEADROOM_FOR_QOS    8
+#define TAILROOM            8 /* for padding by mux layer */
 
 struct rmnet_private {
 	struct net_device_stats stats;
@@ -346,10 +347,12 @@ static int rmnet_open(struct net_device *dev)
 static int __rmnet_close(struct net_device *dev)
 {
 	struct rmnet_private *p = netdev_priv(dev);
-	int rc;
+	int rc = 0;
 
 	if (p->device_up) {
-		rc = msm_rmnet_sdio_close(p->ch_id);
+		/* do not close rmnet port once up,  this causes
+		   remote side to hang if tried to open again */
+		/* rc = msm_rmnet_sdio_close(p->ch_id); */
 		p->device_up = DEVICE_INACTIVE;
 		return rc;
 	} else
@@ -473,6 +476,7 @@ static int rmnet_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 			dev->needed_headroom = HEADROOM_FOR_SDIO +
 			  HEADROOM_FOR_QOS;
+			dev->needed_tailroom = TAILROOM;
 			dev->netdev_ops = &rmnet_ops_ip;
 			spin_lock_irqsave(&p->lock, flags);
 			p->operation_mode &= ~RMNET_MODE_LLP_ETH;
@@ -526,8 +530,8 @@ static int rmnet_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return -EINVAL;
 	}
 
-	pr_info("rmnet_ioctl(): dev=%d cmd=0x%x opmode old=0x%08x new=0x%08x\n",
-		p->ch_id, cmd, old_opmode, p->operation_mode);
+	pr_debug("%s: dev=%d cmd=0x%x opmode old=0x%08x new=0x%08x\n",
+		__func__, p->ch_id, cmd, old_opmode, p->operation_mode);
 	return rc;
 }
 
@@ -540,6 +544,7 @@ static void __init rmnet_setup(struct net_device *dev)
 	/* set this after calling ether_setup */
 	dev->mtu = RMNET_DATA_LEN;
 	dev->needed_headroom = HEADROOM_FOR_SDIO + HEADROOM_FOR_QOS ;
+	dev->needed_tailroom = TAILROOM;
 	random_ether_addr(dev->dev_addr);
 
 	dev->watchdog_timeo = 1000; /* 10 seconds? */
