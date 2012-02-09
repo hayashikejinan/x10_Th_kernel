@@ -185,14 +185,14 @@ void mddi_queue_image
      int16 num_of_rows,
      int16 num_of_columns, int16 dst_starting_row, int16 dst_starting_column);
 
-int mddi_host_register_write_xl(
+void mddi_host_register_write_xl(
 	uint32 reg_addr,
 	uint32 *reg_val_ext,
 	uint32 reg_nbrs,
 	boolean wait,
 	mddi_llist_done_cb_type done_cb,
 	mddi_host_type host);
-int mddi_host_register_write16(
+void mddi_host_register_write16(
 	uint32 reg_addr,
 	uint32 reg_val0,
 	uint32 reg_val1,
@@ -262,6 +262,9 @@ void mddi_window_adjust(struct msm_fb_data_type *mfd,
 	uint16 x1, uint16 x2, uint16 y1, uint16 y2);
 void mddi_send_fw_link_skew_cal(mddi_host_type host_idx);
 int pmdh_clk_func(int enable);
+
+void pmdh_clk_disable(void);
+void pmdh_clk_enable(void);
 
 boolean mddi_video_stream_black_display(uint32 x0, uint32 y0,
 			uint32 width, uint32 height, mddi_host_type host);

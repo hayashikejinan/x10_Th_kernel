@@ -57,12 +57,10 @@ static void mddi_early_suspend(struct early_suspend *h);
 static void mddi_early_resume(struct early_suspend *h);
 #endif
 
-static void pmdh_clk_disable(void);
-static void pmdh_clk_enable(void);
 static struct platform_device *pdev_list[MSM_FB_MAX_DEV_LIST];
 static int pdev_list_cnt;
-static struct clk *mddi_clk;
-static struct clk *mddi_pclk;
+static struct clk *mddi_clk = NULL;
+static struct clk *mddi_pclk = NULL;
 static struct mddi_platform_data *mddi_pdata;
 
 DEFINE_MUTEX(mddi_timer_lock);
@@ -137,7 +135,7 @@ int pmdh_clk_func(int value)
 	return ret;
 }
 
-static void pmdh_clk_disable()
+void pmdh_clk_disable()
 {
 	mutex_lock(&pmdh_clk_lock);
 	if (pmdh_clk_status == 0) {
@@ -168,7 +166,7 @@ static void pmdh_clk_disable()
 	mutex_unlock(&pmdh_clk_lock);
 }
 
-static void pmdh_clk_enable()
+void pmdh_clk_enable()
 {
 	mutex_lock(&pmdh_clk_lock);
 	if (pmdh_clk_status == 1) {
@@ -566,8 +564,7 @@ static int __init mddi_driver_init(void)
 		return ret;
 	}
 
-	if (mddi_resource_initialized == 1)
-		mddi_init();
+	mddi_init();
 
 	return ret;
 }

@@ -400,10 +400,10 @@ typedef struct GCC_PACKED {
 	/* For multi-read/write, 512(128 * 4) bytes of data available */
 
 #ifndef ENABLE_MDDI_MULTI_READ_WRITE
-	uint32 register_data_list_ext[4];
+//	uint32 register_data_list_ext[4];
 #endif
 
-	//uint32 register_data_list_ext[3];
+	uint32 register_data_list_ext[3];
 	/* SEMC Added register data values */
 } mddi_register_access_packet_type;
 

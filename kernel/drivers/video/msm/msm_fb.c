@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2007 Google Incorporated
  * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
+ * Copyright (C) 2011 Sony Ericsson Mobile Communications AB.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -75,13 +76,6 @@ static u32 msm_fb_pseudo_palette[16] = {
 	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff,
 	0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff
 };
-
-#ifdef CONFIG_FB_MSM_SEMC_LCD_BACKLIGHT_CONTROL
-static void (*backlight_ctrl_fp) (bool);
-static void msm_fb_resume_backlight_work_handler(struct work_struct *w);
-static DECLARE_DELAYED_WORK(resume_backlight_work,
-				msm_fb_resume_backlight_work_handler);
-#endif
 
 u32 msm_fb_debug_enabled;
 /* Setting msm_fb_msg_level to 8 prints out ALL messages */
@@ -573,8 +567,6 @@ static struct platform_driver msm_fb_driver = {
 	.remove = msm_fb_remove,
 #ifndef CONFIG_HAS_EARLYSUSPEND
 	.suspend = msm_fb_suspend,
-	.suspend_late = NULL,
-	.resume_early = NULL,
 	.resume = msm_fb_resume,
 #endif
 	.shutdown = NULL,
@@ -624,27 +616,6 @@ void msm_fb_set_backlight(struct msm_fb_data_type *mfd, __u32 bkl_lvl, u32 save)
 	}
 }
 
-#ifdef CONFIG_FB_MSM_SEMC_LCD_BACKLIGHT_CONTROL
-
-static void msm_fb_resume_backlight_work_handler(struct work_struct *w)
-{
-	MSM_FB_DEBUG("%s\n", __func__);
-
-	if (backlight_ctrl_fp)
-		backlight_ctrl_fp(true);
-}
-
-static void msm_fb_resume_backlight_workqueue(unsigned int delay_ms)
-{
-	unsigned long j;
-
-	MSM_FB_DEBUG("%s: delay_ms = %d\n", __func__, delay_ms);
-	j = delay_ms * HZ / 1000;
-	schedule_delayed_work(&resume_backlight_work, j);
-}
-
-#endif
-
 static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 			    boolean op_enable)
 {
@@ -664,35 +635,15 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 	switch (blank_mode) {
 	case FB_BLANK_UNBLANK:
 		if (!mfd->panel_power_on) {
+#if !defined(CONFIG_FB_MSM_MDDI_TMD_NT35580)
+			mdelay(100);
+#endif
 			msleep(16);
 			if (pdata->controller_on_panel_on)
 				pdata->power_on_panel_at_pan = 1;
 			ret = pdata->on(mfd->pdev);
 			if (ret == 0) {
-#ifdef CONFIG_FB_MSM_SEMC_LCD_BACKLIGHT_CONTROL
-				struct fb_var_screeninfo var;
-#endif
 				mfd->panel_power_on = TRUE;
-
-#ifdef CONFIG_FB_MSM_SEMC_LCD_BACKLIGHT_CONTROL
-				var = info->var;
-				var.reserved[0] = 0x54445055;
-				var.reserved[1] = 0;
-				var.reserved[2] = pdata->panel_info.yres << 16 |
-							pdata->panel_info.xres;
-
-				/* Refresh display memory since it may have been
-				   lost (depends on type of display and power
-				   off mode) */
-				(void)msm_fb_pan_display(&var, info);
-				/* Delay backlight on until frambuffer has
-				   been updated to avoid flickering*/
-				backlight_ctrl_fp =
-					pdata->panel_ext->backlight_ctrl;
-				msm_fb_resume_backlight_workqueue(100);
-#endif
-				msm_fb_set_backlight(mfd,
-						     mfd->bl_level, 0);
 
 /* ToDo: possible conflict with android which doesn't expect sw refresher */
 /*
@@ -720,17 +671,11 @@ static int msm_fb_blank_sub(int blank_mode, struct fb_info *info,
 			curr_pwr_state = mfd->panel_power_on;
 			mfd->panel_power_on = FALSE;
 
-#ifdef CONFIG_FB_MSM_SEMC_LCD_BACKLIGHT_CONTROL
-			if (pdata->panel_ext->backlight_ctrl)
-				pdata->panel_ext->backlight_ctrl(false);
-#endif
-
 			msleep(16);
 			ret = pdata->off(mfd->pdev);
 			if (ret)
 				mfd->panel_power_on = curr_pwr_state;
 
-			msm_fb_set_backlight(mfd, 0, 0);
 			mfd->op_enable = TRUE;
 		}
 		break;
@@ -983,16 +928,16 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 		fix->xpanstep = 1;
 		fix->ypanstep = 1;
 		var->vmode = FB_VMODE_NONINTERLACED;
-		var->blue.offset = 0;
-		var->green.offset = 8;
-		var->red.offset = 16;
+		var->blue.offset = 24;
+		var->green.offset = 16;
+		var->red.offset = 8;
 		var->blue.length = 8;
 		var->green.length = 8;
 		var->red.length = 8;
 		var->blue.msb_right = 0;
 		var->green.msb_right = 0;
 		var->red.msb_right = 0;
-		var->transp.offset = 24;
+		var->transp.offset = 0;
 		var->transp.length = 8;
 		bpp = 4;
 		break;
@@ -1002,16 +947,16 @@ static int msm_fb_register(struct msm_fb_data_type *mfd)
 		fix->xpanstep = 1;
 		fix->ypanstep = 1;
 		var->vmode = FB_VMODE_NONINTERLACED;
-		var->blue.offset = 8;
-		var->green.offset = 16;
-		var->red.offset = 24;
+		var->blue.offset = 16;
+		var->green.offset = 8;
+		var->red.offset = 0;
 		var->blue.length = 8;
 		var->green.length = 8;
 		var->red.length = 8;
 		var->blue.msb_right = 0;
 		var->green.msb_right = 0;
 		var->red.msb_right = 0;
-		var->transp.offset = 0;
+		var->transp.offset = 24;
 		var->transp.length = 8;
 		bpp = 4;
 		break;
@@ -1487,14 +1432,14 @@ static int msm_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		   and verify the position of the RGB components */
 
 		if (var->transp.offset == 24) {
-			if ((var->blue.offset != 0) ||
+			if ((var->blue.offset != 16) ||
 			    (var->green.offset != 8) ||
-			    (var->red.offset != 16))
+			    (var->red.offset != 0))
 				return -EINVAL;
 		} else if (var->transp.offset == 0) {
-			if ((var->blue.offset != 8) ||
+			if ((var->blue.offset != 24) ||
 			    (var->green.offset != 16) ||
-			    (var->red.offset != 24))
+			    (var->red.offset != 8))
 				return -EINVAL;
 		} else
 			return -EINVAL;
@@ -1566,7 +1511,7 @@ static int msm_fb_set_par(struct fb_info *info)
 		break;
 
 	case 32:
-		if (var->transp.offset == 24)
+		if (var->transp.offset == 0)
 			mfd->fb_imgType = MDP_ARGB_8888;
 		else
 			mfd->fb_imgType = MDP_RGBA_8888;
@@ -2619,11 +2564,12 @@ static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		}
 
 		down(&msm_fb_ioctl_ppp_sem);
+#if !defined(CONFIG_FB_MSM_MDDI_TMD_NT35580)
 		if (ccs_matrix.direction == MDP_CCS_RGB2YUV)
 			mdp_ccs_rgb2yuv = ccs_matrix;
 		else
 			mdp_ccs_yuv2rgb = ccs_matrix;
-
+#endif
 		msmfb_set_color_conv(&ccs_matrix) ;
 		up(&msm_fb_ioctl_ppp_sem);
 #else

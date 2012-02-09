@@ -435,5 +435,5 @@ void mdp_hw_cursor_done(void);
 void mdp_hw_cursor_init(void);
 
 int mdp_ppp_blit(struct fb_info *info, struct mdp_blit_req *req);
-
+void mdp_vsync_config_update(struct msm_panel_info *pinfo);
 #endif /* MDP_H */

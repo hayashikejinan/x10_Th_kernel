@@ -197,9 +197,8 @@ int mddi_host_register_read(uint32 reg_addr,
 
 	return ret;
 }				/* mddi_host_register_read */
-EXPORT_SYMBOL(mddi_host_register_read);
 
-int mddi_host_register_write_xl(
+void mddi_host_register_write_xl(
 	uint32 reg_addr,
 	uint32 *reg_val_ext,	/* array of register data */
 	uint32 reg_nbrs,
@@ -209,7 +208,6 @@ int mddi_host_register_write_xl(
 	mddi_register_access_packet_xl_type *regacc_pkt_ptr;
 	uint16 curr_llist_idx;
 	uint16 idx_values = 0;
-	int ret = 0;
 
 	if (in_interrupt())
 		MDDI_MSG_CRIT("Called from ISR context\n");
@@ -263,27 +261,14 @@ int mddi_host_register_write_xl(
 	up(&mddi_host_mutex);
 
 	if (wait) {
-		int wait_ret;
-
 		mddi_linked_list_notify_type *llist_notify_ptr;
 		llist_notify_ptr = &llist_extern_notify[host][curr_llist_idx];
-		wait_ret = wait_for_completion_timeout(&(llist_notify_ptr->done_comp), 5 * HZ);
-
-		if (wait_ret <= 0)
-			ret = -EBUSY;
-
-		if (wait_ret < 0)
-			printk(KERN_ERR "%s: failed to wait for completion!\n",
-				__func__);
-		else if (!wait_ret)
-			printk(KERN_ERR "%s: Timed out waiting!\n", __func__);
+		wait_for_completion_interruptible(&(llist_notify_ptr->done_comp));
 	}
-
-	return ret;
 }
 EXPORT_SYMBOL(mddi_host_register_write_xl);
 
-int mddi_host_register_write16(
+void mddi_host_register_write16(
 	uint32 reg_addr,
 	uint32 reg_val0,
 	uint32 reg_val1,
@@ -295,7 +280,6 @@ int mddi_host_register_write16(
 	mddi_linked_list_type *curr_llist_dma_ptr;
 	mddi_register_access_packet_type *regacc_pkt_ptr;
 	uint16 curr_llist_idx;
-	int ret = 0;
 
 	if (in_interrupt())
 		MDDI_MSG_CRIT("Called from ISR context\n");
@@ -344,23 +328,10 @@ int mddi_host_register_write16(
 	up(&mddi_host_mutex);
 
 	if (wait) {
-		int wait_ret;
-
 		mddi_linked_list_notify_type *llist_notify_ptr;
 		llist_notify_ptr = &llist_extern_notify[host][curr_llist_idx];
-		wait_ret = wait_for_completion_timeout(&(llist_notify_ptr->done_comp), 5 * HZ);
-
-		if (wait_ret <= 0)
-			ret = -EBUSY;
-
-		if (wait_ret < 0)
-			printk(KERN_ERR "%s: failed to wait for completion!\n",
-				__func__);
-		else if (!wait_ret)
-			printk(KERN_ERR "%s: Timed out waiting!\n", __func__);
+		wait_for_completion_interruptible(&(llist_notify_ptr->done_comp));
 	}
-
-	return ret;
 }
 EXPORT_SYMBOL(mddi_host_register_write16);
 
@@ -424,7 +395,7 @@ int mddi_host_register_write(uint32 reg_addr,
 		mddi_linked_list_notify_type *llist_notify_ptr;
 		llist_notify_ptr = &llist_extern_notify[host][curr_llist_idx];
 		wait_ret = wait_for_completion_timeout(
-					&(llist_notify_ptr->done_comp), 5 * HZ);
+					&(llist_notify_ptr->done_comp), HZ/5);
 
 		if (wait_ret <= 0)
 			ret = -EBUSY;
@@ -552,7 +523,6 @@ void mddi_wait(uint16 time_ms)
 {
 	mdelay(time_ms);
 }
-EXPORT_SYMBOL(mddi_wait);
 
 void mddi_client_lcd_vsync_detected(boolean detected)
 {
@@ -574,11 +544,12 @@ void mddi_window_adjust_ext(struct msm_fb_data_type *mfd,
 	if (mfd->panel.id == MDDI_LCD_S6D0142)
 		mddi_s6d0142_window_adjust(x1, x2, y1, y2, done_cb);
 #else
-	struct msm_fb_panel_data *pdata;
-	pdata = (struct msm_fb_panel_data *)mfd->pdev->dev.platform_data;
-
-	if (pdata && pdata->panel_ext && pdata->panel_ext->window_adjust)
-		pdata->panel_ext->window_adjust(x1, x2, y1, y2);
+	/* Do nothing then... except avoid lint/compiler warnings */
+	(void)x1;
+	(void)x2;
+	(void)y1;
+	(void)y2;
+	(void)done_cb;
 #endif
 }
 
