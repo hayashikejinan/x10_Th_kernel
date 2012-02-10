@@ -1,4 +1,4 @@
-/* Copyright (c) 2007-2009, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -24,18 +24,10 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  */
 
-#ifndef _ARCH_ARM_MACH_MSM_IDLE_H_
-#define _ARCH_ARM_MACH_MSM_IDLE_H_
+#ifndef _MACH_MSM_MIGRATE_PAGES_H_
+#define _MACH_MSM_MIGRATE_PAGES_H_
 
-int msm_arch_idle(void);
-int msm_pm_collapse(void);
-void msm_pm_collapse_exit(void);
-
-#ifdef CONFIG_CPU_V7
-extern unsigned long msm_pm_pc_pgd;
-#endif
-
+unsigned long get_msm_migrate_pages_status(void);
 #endif
