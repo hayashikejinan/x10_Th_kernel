@@ -32,12 +32,12 @@
 #include "kgsl_sharedmem.h"
 
 struct kgsl_device;
+struct kgsl_device_private;
 
 #define KGSL_G12_PACKET_SIZE 10
 #define KGSL_G12_PACKET_COUNT 8
 #define KGSL_G12_RB_SIZE (KGSL_G12_PACKET_SIZE*KGSL_G12_PACKET_COUNT \
 			  *sizeof(uint32_t))
-
 
 #define ALIGN_IN_BYTES(dim, alignment) (((dim) + (alignment - 1)) & \
 		~(alignment - 1))
@@ -59,17 +59,11 @@ struct kgsl_device;
 				 sizeof(unsigned int))
 #define KGSL_G12_CONTEXT_MAX 16
 
-struct kgsl_g12_z1xx {
-	unsigned int prevctx;
-	unsigned int numcontext;
-	struct kgsl_memdesc      cmdbufdesc;
-};
-
-extern struct kgsl_g12_z1xx g_z1xx;
+#define KGSL_G12_INVALID_CONTEXT UINT_MAX
 
 int
-kgsl_g12_drawctxt_create(struct kgsl_device *device,
-			uint32_t ctxt_id_mask,
+kgsl_g12_drawctxt_create(struct kgsl_device_private *dev_priv,
+			uint32_t unused,
 			unsigned int *drawctxt_id);
 
 int

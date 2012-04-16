@@ -49,10 +49,15 @@
 
 /* device id */
 enum kgsl_deviceid {
-	KGSL_DEVICE_ANY		= 0x00000000,
-	KGSL_DEVICE_YAMATO	= 0x00000001,
-	KGSL_DEVICE_G12		= 0x00000002,
+	KGSL_DEVICE_YAMATO	= 0x00000000,
+	KGSL_DEVICE_G12		= 0x00000001,
 	KGSL_DEVICE_MAX		= 0x00000002
+};
+
+enum kgsl_user_mem_type {
+	KGSL_USER_MEM_TYPE_PMEM		= 0x00000000,
+	KGSL_USER_MEM_TYPE_ASHMEM	= 0x00000001,
+	KGSL_USER_MEM_TYPE_ADDR		= 0x00000002
 };
 
 struct kgsl_devinfo {
@@ -141,7 +146,6 @@ struct kgsl_platform_data {
    struct kgsl_memstore into userspace.
 */
 struct kgsl_device_getproperty {
-	unsigned int device_id;
 	unsigned int type;
 	void  *value;
 	unsigned int sizebytes;
@@ -156,7 +160,6 @@ struct kgsl_device_getproperty {
    GPU register space.
  */
 struct kgsl_device_regread {
-	unsigned int device_id;
 	unsigned int offsetwords;
 	unsigned int value; /* output param */
 };
@@ -169,7 +172,6 @@ struct kgsl_device_regread {
  * timeout is in milliseconds.
  */
 struct kgsl_device_waittimestamp {
-	unsigned int device_id;
 	unsigned int timestamp;
 	unsigned int timeout;
 };
@@ -188,7 +190,6 @@ struct kgsl_device_waittimestamp {
  * the GPU.
  */
 struct kgsl_ringbuffer_issueibcmds {
-	unsigned int device_id;
 	unsigned int drawctxt_id;
 	unsigned int ibaddr;
 	unsigned int sizedwords;
@@ -203,7 +204,6 @@ struct kgsl_ringbuffer_issueibcmds {
  * type should be a value from enum kgsl_timestamp_type
  */
 struct kgsl_cmdstream_readtimestamp {
-	unsigned int device_id;
 	unsigned int type;
 	unsigned int timestamp; /*output param */
 };
@@ -217,7 +217,6 @@ struct kgsl_cmdstream_readtimestamp {
  * type should be a value from enum kgsl_timestamp_type
  */
 struct kgsl_cmdstream_freememontimestamp {
-	unsigned int device_id;
 	unsigned int gpuaddr;
 	unsigned int type;
 	unsigned int timestamp;
@@ -230,7 +229,6 @@ struct kgsl_cmdstream_freememontimestamp {
  * The flags field may contain a mask KGSL_CONTEXT_*  values
  */
 struct kgsl_drawctxt_create {
-	unsigned int device_id;
 	unsigned int flags;
 	unsigned int drawctxt_id; /*output param */
 };
@@ -240,12 +238,27 @@ struct kgsl_drawctxt_create {
 
 /* destroy a draw context */
 struct kgsl_drawctxt_destroy {
-	unsigned int device_id;
 	unsigned int drawctxt_id;
 };
 
 #define IOCTL_KGSL_DRAWCTXT_DESTROY \
 	_IOW(KGSL_IOC_TYPE, 0x14, struct kgsl_drawctxt_destroy)
+
+/* add a block of pmem, fb, ashmem or user allocated address
+ * into the GPU address space */
+struct kgsl_map_user_mem {
+	int fd;
+	unsigned int gpuaddr;   /*output param */
+	unsigned int len;
+	unsigned int offset;
+	unsigned int hostptr;   /*input param */
+	enum kgsl_user_mem_type memtype;
+	unsigned int reserved;	/* May be required to add
+				params for another mem type */
+};
+
+#define IOCTL_KGSL_MAP_USER_MEM \
+	_IOWR(KGSL_IOC_TYPE, 0x15, struct kgsl_map_user_mem)
 
 /* add a block of pmem or fb into the GPU address space */
 struct kgsl_sharedmem_from_pmem {
@@ -300,9 +313,7 @@ struct kgsl_bind_gmem_shadow {
 struct kgsl_sharedmem_from_vmalloc {
 	unsigned int gpuaddr;	/*output param */
 	unsigned int hostptr;
-	/* If set from user space then will attempt to
-	 * allocate even if low watermark is crossed */
-	int force_no_low_watermark;
+	unsigned int flags;
 };
 
 #define IOCTL_KGSL_SHAREDMEM_FROM_VMALLOC \
@@ -312,7 +323,6 @@ struct kgsl_sharedmem_from_vmalloc {
 	_IOW(KGSL_IOC_TYPE, 0x24, struct kgsl_sharedmem_free)
 
 struct kgsl_drawctxt_set_bin_base_offset {
-	unsigned int device_id;
 	unsigned int drawctxt_id;
 	unsigned int offset;
 };
@@ -331,7 +341,6 @@ enum kgsl_cmdwindow_type {
 
 /* write to the command window */
 struct kgsl_cmdwindow_write {
-	unsigned int device_id;
 	enum kgsl_cmdwindow_type target;
 	unsigned int addr;
 	unsigned int data;
@@ -340,4 +349,12 @@ struct kgsl_cmdwindow_write {
 #define IOCTL_KGSL_CMDWINDOW_WRITE \
 	_IOW(KGSL_IOC_TYPE, 0x2e, struct kgsl_cmdwindow_write)
 
+#ifdef __KERNEL__
+#ifdef CONFIG_MSM_KGSL_DRM
+int kgsl_gem_obj_addr(int drm_fd, int handle, unsigned long *start,
+			unsigned long *len);
+#else
+#define kgsl_gem_obj_addr(...) 0
+#endif
+#endif
 #endif /* _MSM_KGSL_H */
