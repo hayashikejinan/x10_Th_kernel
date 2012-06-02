@@ -660,7 +660,6 @@ static int kgsl_yamato_start(struct kgsl_device *device)
 	kgsl_driver.is_suspended = KGSL_FALSE;
 
 	device->chip_id = kgsl_yamato_getchipid(device);
-	device->hwaccess_blocked = KGSL_FALSE;
 
 	if (kgsl_mmu_start(device))
 		goto error_clk_off;
@@ -688,15 +687,19 @@ static int kgsl_yamato_start(struct kgsl_device *device)
 	kgsl_yamato_regwrite(device, REG_MH_ARBITER_CONFIG,
 				KGSL_CFG_YAMATO_MHARB);
 
-	kgsl_yamato_regwrite(device, REG_MH_CLNT_INTF_CTRL_CONFIG1, 0x00030f27);
-	kgsl_yamato_regwrite(device, REG_MH_CLNT_INTF_CTRL_CONFIG2, 0x00472747);
+	if (device->chip_id != KGSL_CHIPID_LEIA_REV470) {
+		kgsl_yamato_regwrite(device,
+			 REG_MH_CLNT_INTF_CTRL_CONFIG1, 0x00030f27);
+		kgsl_yamato_regwrite(device,
+			 REG_MH_CLNT_INTF_CTRL_CONFIG2, 0x00472747);
+	}
 
 	kgsl_yamato_regwrite(device, REG_SQ_VS_PROGRAM, 0x00000000);
 	kgsl_yamato_regwrite(device, REG_SQ_PS_PROGRAM, 0x00000000);
 
-
 	kgsl_yamato_regwrite(device, REG_RBBM_PM_OVERRIDE1, 0);
-	kgsl_yamato_regwrite(device, REG_RBBM_PM_OVERRIDE2, 0);
+	if (device->chip_id != KGSL_CHIPID_LEIA_REV470)
+		kgsl_yamato_regwrite(device, REG_RBBM_PM_OVERRIDE2, 0);
 
 	kgsl_sharedmem_set(&device->memstore, 0, 0, device->memstore.size);
 
@@ -724,6 +727,7 @@ static int kgsl_yamato_start(struct kgsl_device *device)
 
 	mod_timer(&device->idle_timer, jiffies + FIRST_TIMEOUT);
 	device->flags |= KGSL_FLAGS_STARTED;
+	device->hwaccess_blocked = KGSL_FALSE;
 #ifdef CONFIG_KGSL_PER_PROCESS_PAGE_TABLE
 	pr_info("msm_kgsl: initialized dev=%d mmu=%s "
 		"per_process_pagetable=on\n",
@@ -766,6 +770,7 @@ static int kgsl_yamato_stop(struct kgsl_device *device)
 		/* For some platforms, power needs to go off before clocks */
 		kgsl_pwrctrl(KGSL_PWRFLAGS_YAMATO_POWER_OFF);
 		kgsl_pwrctrl(KGSL_PWRFLAGS_YAMATO_CLK_OFF);
+		device->hwaccess_blocked = KGSL_TRUE;
 
 		device->flags &= ~KGSL_FLAGS_STARTED;
 	}

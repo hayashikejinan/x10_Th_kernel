@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -26,32 +26,14 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef _GSL_CMDSTREAM_H
-#define _GSL_CMDSTREAM_H
+#ifndef _LEIA_REG_H
+#define _LEIA_REG_H
 
-#include <linux/types.h>
-#include <linux/msm_kgsl.h>
-#include "kgsl_device.h"
-#include "kgsl_g12.h"
-#include <linux/mutex.h>
-#include <linux/msm_kgsl.h>
-#include "kgsl_sharedmem.h"
+#define REG_LEIA_PC_INDX_OFFSET          REG_VGT_INDX_OFFSET
+#define REG_LEIA_PC_VERTEX_REUSE_BLOCK_CNTL REG_VGT_VERTEX_REUSE_BLOCK_CNTL
+#define REG_LEIA_PC_MAX_VTX_INDX         REG_VGT_MAX_VTX_INDX
+#define REG_LEIA_GRAS_CONTROL            0x2210
+#define REG_LEIA_VSC_BIN_SIZE            0x0C01
+#define REG_LEIA_VSC_PIPE_DATA_LENGTH_7  0x0C1D
 
-struct kgsl_g12_device;
-
-int kgsl_g12_cmdstream_init(struct kgsl_device *device);
-
-int kgsl_g12_cmdstream_start(struct kgsl_device *device);
-
-void kgsl_g12_cmdstream_close(struct kgsl_device *device);
-
-unsigned int kgsl_g12_cmdstream_readtimestamp(struct kgsl_device *device,
-					enum kgsl_timestamp_type unused);
-void kgsl_g12_cmdstream_memqueue_drain(struct kgsl_g12_device *g12_device);
-int kgsl_g12_cmdstream_issueibcmds(struct kgsl_device_private *dev_priv,
-			int drawctxt_index,
-			struct kgsl_ibdesc *ibdesc,
-			unsigned int numibs,
-			uint32_t *timestamp,
-			unsigned int ctrl);
-#endif  /* _GSL_CMDSTREAM_H */
+#endif /*_LEIA_REG_H*/
