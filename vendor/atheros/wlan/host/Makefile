@@ -72,7 +72,8 @@ export  ATH_SRC_BASE
 export  ATH_BUILD_TYPE
 export  ATH_OS_SUB_TYPE
 export  ATH_LINUXPATH=../../../../kernel/
-export  ATH_CROSS_COMPILE_TYPE=export ARCH=arm CROSS_COMPILE=/home/ta/myX10/compiler/arm-2011.09/bin/arm-none-eabi-
+#export  ATH_CROSS_COMPILE_TYPE=export ARCH=arm CROSS_COMPILE=/home/ta/myX10/compiler/arm-2011.09/bin/arm-none-eabi-
+export  ATH_CROSS_COMPILE_TYPE=export ARCH=arm CROSS_COMPILE=/home/ta/myX10/compiler/4.7/bin/arm-eabi-
 export  ATH_ARCH_CPU_TYPE
 export  ATH_SDIO_STACK_BASE
 export  ATH_BUS_TYPE
