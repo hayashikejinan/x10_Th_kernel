@@ -1,67 +1,29 @@
-/* Copyright (c) 2002,2007-2009, Code Aurora Forum. All rights reserved.
- * Copyright (C) 2010 Sony Ericsson Mobile Communications AB.
+/* Copyright (c) 2002,2007-2010, Code Aurora Forum. All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of Code Aurora Forum nor
- *       the names of its contributors may be used to endorse or promote
- *       products derived from this software without specific prior written
- *       permission.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
  *
- * Alternatively, provided that this notice is retained in full, this software
- * may be relicensed by the recipient under the terms of the GNU General Public
- * License version 2 ("GPL") and only version 2, in which case the provisions of
- * the GPL apply INSTEAD OF those given above.  If the recipient relicenses the
- * software under the GPL, then the identification text in the MODULE_LICENSE
- * macro must be changed to reflect "GPLv2" instead of "Dual BSD/GPL".  Once a
- * recipient changes the license terms to the GPL, subsequent recipients shall
- * not relicense under alternate licensing terms, including the BSD or dual
- * BSD/GPL terms.  In addition, the following license statement immediately
- * below and between the words START and END shall also then apply when this
- * software is relicensed under the GPL:
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * START
- *
- * This program is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License version 2 and only version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
- * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
- * details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
- *
- * END
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
  *
  */
 #include <linux/firmware.h>
 #include <linux/io.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
+#include <linux/slab.h>
 
 #include "kgsl.h"
 #include "kgsl_device.h"
+#include "kgsl_yamato.h"
 #include "kgsl_log.h"
 #include "kgsl_pm4types.h"
 #include "kgsl_ringbuffer.h"
@@ -90,6 +52,8 @@
 
 #define YAMATO_PFP_FW "yamato_pfp.fw"
 #define YAMATO_PM4_FW "yamato_pm4.fw"
+#define LEIA_PFP_470_FW "leia_pfp_470.fw"
+#define LEIA_PM4_470_FW "leia_pm4_470.fw"
 
 /*  ringbuffer size log2 quadwords equivalent */
 inline unsigned int kgsl_ringbuffer_sizelog2quadwords(unsigned int sizedwords)
@@ -108,6 +72,8 @@ inline unsigned int kgsl_ringbuffer_sizelog2quadwords(unsigned int sizedwords)
 void kgsl_cp_intrcallback(struct kgsl_device *device)
 {
 	unsigned int status = 0, num_reads = 0, master_status = 0;
+	struct kgsl_yamato_device *yamato_device = (struct kgsl_yamato_device *)
+								device;
 	struct kgsl_ringbuffer *rb = &device->ringbuffer;
 
 	KGSL_CMD_VDBG("enter (device=%p)\n", device);
@@ -131,17 +97,22 @@ void kgsl_cp_intrcallback(struct kgsl_device *device)
 			 * did not ack any interrupts this interrupt will
 			 * be generated again */
 			KGSL_DRV_WARN("Unable to read CP_INT_STATUS\n");
-			wake_up_interruptible_all(&device->ib1_wq);
+			wake_up_interruptible_all(&yamato_device->ib1_wq);
 		} else
 			KGSL_DRV_WARN("Spurious interrput detected\n");
 		return;
 	}
 
-	if (status & CP_INT_CNTL__IB1_INT_MASK) {
-		/*this is the only used soft interrupt */
-		KGSL_CMD_WARN("ringbuffer ib1 interrupt\n");
-		wake_up_interruptible_all(&device->ib1_wq);
+	if (status & CP_INT_CNTL__RB_INT_MASK) {
+		/* signal intr completion event */
+		unsigned int enableflag = 0;
+		kgsl_sharedmem_writel(&rb->device->memstore,
+			KGSL_DEVICE_MEMSTORE_OFFSET(ts_cmp_enable),
+			enableflag);
+		wmb();
+		KGSL_CMD_WARN("ringbuffer rb interrupt\n");
 	}
+
 	if (status & CP_INT_CNTL__T0_PACKET_IN_IB_MASK) {
 		KGSL_CMD_FATAL("ringbuffer TO packet in IB interrupt\n");
 		kgsl_yamato_regwrite(rb->device, REG_CP_INT_CNTL, 0);
@@ -170,9 +141,6 @@ void kgsl_cp_intrcallback(struct kgsl_device *device)
 	if (status & CP_INT_CNTL__SW_INT_MASK)
 		KGSL_CMD_DBG("ringbuffer software interrupt\n");
 
-	if (status & CP_INT_CNTL__RB_INT_MASK)
-		KGSL_CMD_DBG("ringbuffer rb interrupt\n");
-
 	if (status & CP_INT_CNTL__IB2_INT_MASK)
 		KGSL_CMD_DBG("ringbuffer ib2 interrupt\n");
 
@@ -183,16 +151,21 @@ void kgsl_cp_intrcallback(struct kgsl_device *device)
 	status &= GSL_CP_INT_MASK;
 	kgsl_yamato_regwrite(device, REG_CP_INT_ACK, status);
 
+	if (status & (CP_INT_CNTL__IB1_INT_MASK | CP_INT_CNTL__RB_INT_MASK)) {
+		KGSL_CMD_WARN("ringbuffer ib1/rb interrupt\n");
+		wake_up_interruptible_all(&yamato_device->ib1_wq);
+		atomic_notifier_call_chain(&(device->ts_notifier_list),
+					   KGSL_DEVICE_YAMATO,
+					   NULL);
+	}
+
 	KGSL_CMD_VDBG("return\n");
 }
 
 
-void kgsl_ringbuffer_watchdog()
+void kgsl_ringbuffer_watchdog(struct kgsl_device *device)
 {
-	struct kgsl_device *device = NULL;
 	struct kgsl_ringbuffer *rb = NULL;
-
-	device = &kgsl_driver.yamato_device;
 
 	BUG_ON(device == NULL);
 
@@ -268,15 +241,6 @@ kgsl_ringbuffer_waitspace(struct kgsl_ringbuffer *rb, unsigned int numcmds,
 
 		cmds = (unsigned int *)rb->buffer_desc.hostptr + rb->wptr;
 		GSL_RB_WRITE(cmds, pm4_nop_packet(nopcount));
-
-		/* Make sure that rptr is not 0 before submitting
-		 * commands at the end of ringbuffer. We do not
-		 * want the rptr and wptr to become equal when
-		 * the ringbuffer is not empty */
-		do {
-			GSL_RB_GET_READPTR(rb, &rb->rptr);
-		} while (!rb->rptr);
-
 		rb->wptr++;
 
 		kgsl_ringbuffer_submit(rb);
@@ -290,7 +254,7 @@ kgsl_ringbuffer_waitspace(struct kgsl_ringbuffer *rb, unsigned int numcmds,
 
 		freecmds = rb->rptr - rb->wptr;
 
-	} while ((freecmds != 0) && (freecmds <= numcmds));
+	} while ((freecmds != 0) && (freecmds < numcmds));
 
 	KGSL_CMD_VDBG("return %d\n", 0);
 
@@ -340,18 +304,32 @@ static int kgsl_ringbuffer_load_pm4_ucode(struct kgsl_device *device)
 	unsigned int *fw_ptr = NULL;
 	size_t fw_word_size = 0;
 
-	status = request_firmware(&fw, YAMATO_PM4_FW,
-					kgsl_driver.misc.this_device);
-	if (status != 0) {
-		KGSL_DRV_ERR("request_firmware failed for %s with error %d\n",
+	if (device->chip_id == KGSL_CHIPID_LEIA_REV470) {
+		status = request_firmware(&fw, LEIA_PM4_470_FW,
+			kgsl_driver.base_dev[KGSL_DEVICE_YAMATO]);
+		if (status != 0) {
+			KGSL_DRV_ERR(
+				"request_firmware failed for %s  \
+				 with error %d\n",
+				LEIA_PM4_470_FW, status);
+			goto error;
+		}
+	} else {
+		status = request_firmware(&fw, YAMATO_PM4_FW,
+			kgsl_driver.base_dev[KGSL_DEVICE_YAMATO]);
+		if (status != 0) {
+			KGSL_DRV_ERR(
+				"request_firmware failed for %s  \
+				 with error %d\n",
 				YAMATO_PM4_FW, status);
-		goto done;
+			goto error;
+		}
 	}
 	/*this firmware must come in 3 word chunks. plus 1 word of version*/
 	if ((fw->size % (sizeof(uint32_t)*3)) != 4) {
 		KGSL_DRV_ERR("bad firmware size %d.\n", fw->size);
 		status = -EINVAL;
-		goto done;
+		goto error_release_fw;
 	}
 	fw_ptr = (unsigned int *)fw->data;
 	fw_word_size = fw->size/sizeof(uint32_t);
@@ -362,8 +340,9 @@ static int kgsl_ringbuffer_load_pm4_ucode(struct kgsl_device *device)
 	for (i = 1; i < fw_word_size; i++)
 		kgsl_yamato_regwrite(device, REG_CP_ME_RAM_DATA, fw_ptr[i]);
 
-done:
+error_release_fw:
 	release_firmware(fw);
+error:
 	return status;
 }
 
@@ -375,12 +354,26 @@ static int kgsl_ringbuffer_load_pfp_ucode(struct kgsl_device *device)
 	unsigned int *fw_ptr = NULL;
 	size_t fw_word_size = 0;
 
-	status = request_firmware(&fw, YAMATO_PFP_FW,
-				kgsl_driver.misc.this_device);
-	if (status != 0) {
-		KGSL_DRV_ERR("request_firmware for %s failed with error %d\n",
+	if (device->chip_id == KGSL_CHIPID_LEIA_REV470) {
+		status = request_firmware(&fw, LEIA_PFP_470_FW,
+				kgsl_driver.base_dev[KGSL_DEVICE_YAMATO]);
+		if (status != 0) {
+			KGSL_DRV_ERR(
+				"request_firmware for %s \
+				 failed with error %d\n",
+				LEIA_PFP_470_FW, status);
+			return status;
+		}
+	} else {
+		status = request_firmware(&fw, YAMATO_PFP_FW,
+				kgsl_driver.base_dev[KGSL_DEVICE_YAMATO]);
+		if (status != 0) {
+			KGSL_DRV_ERR(
+				"request_firmware for %s \
+				 failed with error %d\n",
 				YAMATO_PFP_FW, status);
-		return status;
+			return status;
+		}
 	}
 	/*this firmware must come in 1 word chunks. */
 	if ((fw->size % sizeof(uint32_t)) != 0) {
@@ -401,7 +394,7 @@ static int kgsl_ringbuffer_load_pfp_ucode(struct kgsl_device *device)
 	return status;
 }
 
-static int kgsl_ringbuffer_start(struct kgsl_ringbuffer *rb)
+int kgsl_ringbuffer_start(struct kgsl_ringbuffer *rb)
 {
 	int status;
 	/*cp_rb_cntl_u cp_rb_cntl; */
@@ -485,6 +478,8 @@ static int kgsl_ringbuffer_start(struct kgsl_ringbuffer *rb)
 	rb->timestamp = 0;
 	GSL_RB_INIT_TIMESTAMP(rb);
 
+	INIT_LIST_HEAD(&rb->memqueue);
+
 	/* clear ME_HALT to start micro engine */
 	kgsl_yamato_regwrite(device, REG_CP_ME_CNTL, 0);
 
@@ -542,7 +537,7 @@ static int kgsl_ringbuffer_start(struct kgsl_ringbuffer *rb)
 	return status;
 }
 
-static int kgsl_ringbuffer_stop(struct kgsl_ringbuffer *rb)
+int kgsl_ringbuffer_stop(struct kgsl_ringbuffer *rb)
 {
 	KGSL_CMD_VDBG("enter (rb=%p)\n", rb);
 
@@ -552,6 +547,8 @@ static int kgsl_ringbuffer_stop(struct kgsl_ringbuffer *rb)
 
 		/* ME_HALT */
 		kgsl_yamato_regwrite(rb->device, REG_CP_ME_CNTL, 0x10000000);
+
+		kgsl_cmdstream_memqueue_drain(rb->device);
 
 		rb->flags &= ~KGSL_FLAGS_STARTED;
 		kgsl_ringbuffer_dump(rb);
@@ -573,8 +570,6 @@ int kgsl_ringbuffer_init(struct kgsl_device *device)
 	rb->device = device;
 	rb->sizedwords = (2 << kgsl_cfg_rb_sizelog2quadwords);
 	rb->blksizequadwords = kgsl_cfg_rb_blksizequadwords;
-
-	INIT_LIST_HEAD(&rb->memqueue);
 
 	/* allocate memory for ringbuffer, needs to be double octword aligned
 	* align on page from contiguous physical memory
@@ -606,26 +601,10 @@ int kgsl_ringbuffer_init(struct kgsl_device *device)
 		return status;
 	}
 
-	/* last allocation of init process is made here so map all
-	 * allocations to MMU */
-	status = kgsl_yamato_setup_pt(device, device->mmu.defaultpagetable);
-	if (status != 0) {
-		kgsl_ringbuffer_close(rb);
-		KGSL_CMD_VDBG("return %d\n", status);
-		return status;
-	}
-
 	/* overlay structure on memptrs memory */
 	rb->memptrs = (struct kgsl_rbmemptrs *) rb->memptrs_desc.hostptr;
 
 	rb->flags |= KGSL_FLAGS_INITIALIZED;
-
-	status = kgsl_ringbuffer_start(rb);
-	if (status != 0) {
-		kgsl_ringbuffer_close(rb);
-		KGSL_CMD_VDBG("return %d\n", status);
-		return status;
-	}
 
 	KGSL_CMD_VDBG("return %d\n", 0);
 	return 0;
@@ -634,13 +613,6 @@ int kgsl_ringbuffer_init(struct kgsl_device *device)
 int kgsl_ringbuffer_close(struct kgsl_ringbuffer *rb)
 {
 	KGSL_CMD_VDBG("enter (rb=%p)\n", rb);
-
-	kgsl_cmdstream_memqueue_drain(rb->device);
-
-	kgsl_ringbuffer_stop(rb);
-
-	/* this must happen before first sharedmem_free */
-	kgsl_yamato_cleanup_pt(rb->device, rb->device->mmu.defaultpagetable);
 
 	if (rb->buffer_desc.hostptr)
 		kgsl_sharedmem_free(&rb->buffer_desc);
@@ -658,53 +630,65 @@ int kgsl_ringbuffer_close(struct kgsl_ringbuffer *rb)
 
 static uint32_t
 kgsl_ringbuffer_addcmds(struct kgsl_ringbuffer *rb,
-				int pmodeoff, unsigned int *cmds,
+				unsigned int flags, unsigned int *cmds,
 				int sizedwords)
 {
-	unsigned int pmodesizedwords;
 	unsigned int *ringcmds;
 	unsigned int timestamp;
-	unsigned int i;
+	unsigned int total_sizedwords = sizedwords + 6;
 
 	/* reserve space to temporarily turn off protected mode
 	*  error checking if needed
 	*/
-	pmodesizedwords = pmodeoff ? 4 : 0;
+	total_sizedwords += flags & KGSL_CMD_FLAGS_PMODE ? 4 : 0;
+	total_sizedwords += !(flags & KGSL_CMD_FLAGS_NO_TS_CMP) ? 9 : 0;
 
-	ringcmds = kgsl_ringbuffer_allocspace(rb,
-					pmodesizedwords + sizedwords + 6);
+	ringcmds = kgsl_ringbuffer_allocspace(rb, total_sizedwords);
 
-	if (pmodeoff) {
+	if (flags & KGSL_CMD_FLAGS_PMODE) {
 		/* disable protected mode error checking */
-		GSL_RB_WRITE(ringcmds,
-			pm4_type3_packet(PM4_SET_PROTECTED_MODE, 1));
-		GSL_RB_WRITE(ringcmds, 0);
+		*ringcmds++ = pm4_type3_packet(PM4_SET_PROTECTED_MODE, 1);
+		*ringcmds++ = 0;
 	}
 
-	for (i = 0; i < sizedwords; i++) {
-		GSL_RB_WRITE(ringcmds, *cmds);
-		cmds++;
-	}
+	memcpy(ringcmds, cmds, (sizedwords << 2));
 
-	if (pmodeoff) {
+	ringcmds += sizedwords;
+
+	if (flags & KGSL_CMD_FLAGS_PMODE) {
 		/* re-enable protected mode error checking */
-		GSL_RB_WRITE(ringcmds,
-			pm4_type3_packet(PM4_SET_PROTECTED_MODE, 1));
-		GSL_RB_WRITE(ringcmds, 1);
+		*ringcmds++ = pm4_type3_packet(PM4_SET_PROTECTED_MODE, 1);
+		*ringcmds++ = 1;
 	}
 
 	rb->timestamp++;
 	timestamp = rb->timestamp;
 
 	/* start-of-pipeline and end-of-pipeline timestamps */
-	GSL_RB_WRITE(ringcmds, pm4_type0_packet(REG_CP_TIMESTAMP, 1));
-	GSL_RB_WRITE(ringcmds, rb->timestamp);
-	GSL_RB_WRITE(ringcmds, pm4_type3_packet(PM4_EVENT_WRITE, 3));
-	GSL_RB_WRITE(ringcmds, CACHE_FLUSH_TS);
-	GSL_RB_WRITE(ringcmds,
+	*ringcmds++ = pm4_type0_packet(REG_CP_TIMESTAMP, 1);
+	*ringcmds++ = rb->timestamp;
+	*ringcmds++ = pm4_type3_packet(PM4_EVENT_WRITE, 3);
+	*ringcmds++ = CACHE_FLUSH_TS;
+	*ringcmds++ =
 		     (rb->device->memstore.gpuaddr +
-		      KGSL_DEVICE_MEMSTORE_OFFSET(eoptimestamp)));
-	GSL_RB_WRITE(ringcmds, rb->timestamp);
+		      KGSL_DEVICE_MEMSTORE_OFFSET(eoptimestamp));
+	*ringcmds++ = rb->timestamp;
+
+	if (!(flags & KGSL_CMD_FLAGS_NO_TS_CMP)) {
+		/* Conditional execution based on memory values */
+		*ringcmds++ = pm4_type3_packet(PM4_COND_EXEC, 4);
+		*ringcmds++ = (rb->device->memstore.gpuaddr +
+			KGSL_DEVICE_MEMSTORE_OFFSET(ts_cmp_enable)) >> 2;
+		*ringcmds++ = (rb->device->memstore.gpuaddr +
+			KGSL_DEVICE_MEMSTORE_OFFSET(ref_wait_ts)) >> 2;
+		*ringcmds++ = rb->timestamp;
+		/* # of conditional command DWORDs */
+		*ringcmds++ = 4;
+		*ringcmds++ = pm4_type3_packet(PM4_WAIT_FOR_IDLE, 1);
+		*ringcmds++ = 0x00000000;
+		*ringcmds++ = pm4_type3_packet(PM4_INTERRUPT, 1);
+		*ringcmds++ = CP_INT_CNTL__RB_INT_MASK;
+	}
 
 	kgsl_ringbuffer_submit(rb);
 
@@ -719,65 +703,83 @@ kgsl_ringbuffer_addcmds(struct kgsl_ringbuffer *rb,
 
 uint32_t
 kgsl_ringbuffer_issuecmds(struct kgsl_device *device,
-						int pmodeoff,
+						unsigned int flags,
 						unsigned int *cmds,
 						int sizedwords)
 {
 	unsigned int timestamp;
 	struct kgsl_ringbuffer *rb = &device->ringbuffer;
 
-	KGSL_CMD_VDBG("enter (device->id=%d, pmodeoff=%d, cmds=%p, "
-		"sizedwords=%d)\n", device->id, pmodeoff, cmds, sizedwords);
+	KGSL_CMD_VDBG("enter (device->id=%d, flags=%d, cmds=%p, "
+		"sizedwords=%d)\n", device->id, flags, cmds, sizedwords);
 
-	timestamp = kgsl_ringbuffer_addcmds(rb, pmodeoff, cmds, sizedwords);
+	timestamp = kgsl_ringbuffer_addcmds(rb, flags, cmds, sizedwords);
 
 	KGSL_CMD_VDBG("return %d\n)", timestamp);
 	return timestamp;
 }
 
 int
-kgsl_ringbuffer_issueibcmds(struct kgsl_device *device,
+kgsl_ringbuffer_issueibcmds(struct kgsl_device_private *dev_priv,
 				int drawctxt_index,
-				uint32_t ibaddr,
-				int sizedwords,
+				struct kgsl_ibdesc *ibdesc,
+				unsigned int numibs,
 				uint32_t *timestamp,
 				unsigned int flags)
 {
-	unsigned int link[3];
+	struct kgsl_device *device = dev_priv->device;
+	struct kgsl_yamato_device *yamato_device = (struct kgsl_yamato_device *)
+							device;
+	unsigned int *link;
+	unsigned int *cmds;
+	unsigned int i;
 
-	KGSL_CMD_VDBG("enter (device_id=%d, drawctxt_index=%d, ibaddr=0x%08x,"
-			" sizedwords=%d, timestamp=%p)\n",
-			device->id, drawctxt_index, ibaddr,
-			sizedwords, timestamp);
+	KGSL_CMD_VDBG("enter (device_id=%d, drawctxt_index=%d, ibdesc=0x%08x,"
+			" numibs=%d, timestamp=%p)\n",
+			device->id, drawctxt_index, (unsigned int)ibdesc,
+			numibs, timestamp);
 
-	if (!(device->ringbuffer.flags & KGSL_FLAGS_STARTED)) {
+
+	if (!(device->ringbuffer.flags & KGSL_FLAGS_STARTED) ||
+				(drawctxt_index >= KGSL_CONTEXT_MAX)) {
 		KGSL_CMD_VDBG("return %d\n", -EINVAL);
 		return -EINVAL;
 	}
 
-	BUG_ON(ibaddr == 0);
-	BUG_ON(sizedwords == 0);
+	BUG_ON(ibdesc == 0);
+	BUG_ON(numibs == 0);
 
-	link[0] = PM4_HDR_INDIRECT_BUFFER_PFD;
-	link[1] = ibaddr;
-	link[2] = sizedwords;
+	link = kzalloc(sizeof(unsigned int) * numibs * 3, GFP_KERNEL);
+	cmds = link;
+	if (!link) {
+		KGSL_MEM_ERR("Failed to allocate memory for for command"
+				" submission, size %x\n", numibs * 3);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < numibs; i++) {
+		*cmds++ = PM4_HDR_INDIRECT_BUFFER_PFD;
+		*cmds++ = ibdesc[i].gpuaddr;
+		*cmds++ = ibdesc[i].sizedwords;
+	}
 
 	kgsl_setstate(device, device->mmu.tlb_flags);
 
-	kgsl_drawctxt_switch(device, &device->drawctxt[drawctxt_index], flags);
+	kgsl_drawctxt_switch(yamato_device,
+			&yamato_device->drawctxt[drawctxt_index], flags);
 
 	*timestamp = kgsl_ringbuffer_addcmds(&device->ringbuffer,
-					0, &link[0], 3);
+					0, &link[0], (cmds - link));
 
-
-	KGSL_CMD_INFO("ctxt %d g %08x sd %d ts %d\n",
-			drawctxt_index, ibaddr, sizedwords, *timestamp);
+	KGSL_CMD_INFO("ctxt %d g %08x numibs %d ts %d\n",
+		drawctxt_index, (unsigned int)ibdesc, numibs, *timestamp);
 
 	KGSL_CMD_VDBG("return %d\n", 0);
 
+	kfree(link);
+
 	return 0;
 }
-
 
 #ifdef DEBUG
 void kgsl_ringbuffer_debug(struct kgsl_ringbuffer *rb,

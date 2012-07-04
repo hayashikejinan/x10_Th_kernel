@@ -26,27 +26,54 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef _GSL_CMDSTREAM_H
-#define _GSL_CMDSTREAM_H
+#ifndef __GSL_DRAWCTXT_G12_H
+#define __GSL_DRAWCTXT_G12_H
 
-#include <linux/types.h>
-#include <linux/msm_kgsl.h>
-#include "kgsl_device.h"
-#include <linux/mutex.h>
-#include <linux/msm_kgsl.h>
 #include "kgsl_sharedmem.h"
 
 struct kgsl_device;
+struct kgsl_device_private;
 
-int kgsl_g12_cmdstream_check_timestamp(struct kgsl_device *device,
-					unsigned int timestamp);
-int kgsl_g12_cmdstream_issueibcmds(struct kgsl_device *device,
-			struct kgsl_pagetable *pagetable,
-			int drawctxt_index,
-			uint32_t ibaddr,
-			int sizedwords,
-			int *timestamp,
-			unsigned int ctrl);
-int kgsl_g12_cmdstream_addtimestamp(struct kgsl_device *device,
-			  int *timestamp);
-#endif  /* _GSL_CMDSTREAM_H */
+#define KGSL_G12_PACKET_SIZE 15
+#define KGSL_G12_MARKER_SIZE 10
+#define KGSL_G12_CALL_CMD     0x1000
+#define KGSL_G12_MARKER_CMD   0x8000
+#define KGSL_G12_STREAM_END_CMD 0x9000
+#define KGSL_G12_STREAM_PACKET 0x7C000176
+#define KGSL_G12_STREAM_PACKET_CALL 0x7C000275
+#define KGSL_G12_PACKET_COUNT 8
+#define KGSL_G12_RB_SIZE (KGSL_G12_PACKET_SIZE*KGSL_G12_PACKET_COUNT \
+			  *sizeof(uint32_t))
+
+#define ALIGN_IN_BYTES(dim, alignment) (((dim) + (alignment - 1)) & \
+		~(alignment - 1))
+
+
+#define NUMTEXUNITS             4
+#define TEXUNITREGCOUNT         25
+#define VG_REGCOUNT             0x39
+
+#define PACKETSIZE_BEGIN        3
+#define PACKETSIZE_G2DCOLOR     2
+#define PACKETSIZE_TEXUNIT      (TEXUNITREGCOUNT * 2)
+#define PACKETSIZE_REG          (VG_REGCOUNT * 2)
+#define PACKETSIZE_STATE        (PACKETSIZE_TEXUNIT * NUMTEXUNITS + \
+				 PACKETSIZE_REG + PACKETSIZE_BEGIN + \
+				 PACKETSIZE_G2DCOLOR)
+#define PACKETSIZE_STATESTREAM  (ALIGN_IN_BYTES((PACKETSIZE_STATE * \
+				 sizeof(unsigned int)), 32) / \
+				 sizeof(unsigned int))
+#define KGSL_G12_CONTEXT_MAX 16
+
+#define KGSL_G12_INVALID_CONTEXT UINT_MAX
+
+int
+kgsl_g12_drawctxt_create(struct kgsl_device_private *dev_priv,
+			uint32_t unused,
+			unsigned int *drawctxt_id);
+
+int
+kgsl_g12_drawctxt_destroy(struct kgsl_device *device,
+			unsigned int drawctxt_id);
+
+#endif  /* __GSL_DRAWCTXT_H */
